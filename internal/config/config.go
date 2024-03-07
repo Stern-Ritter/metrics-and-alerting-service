@@ -9,7 +9,7 @@ type AgentConfig struct {
 }
 
 type ServerConfig struct {
-	Url string
+	URL string
 }
 
 var MonitoringAgentConfig = AgentConfig{
@@ -19,5 +19,5 @@ var MonitoringAgentConfig = AgentConfig{
 }
 
 var MetricsServerConfig = ServerConfig{
-	Url: `:8080`,
+	URL: `:8080`,
 }

@@ -244,6 +244,7 @@ func TestUpdateMetricHandler(t *testing.T) {
 			res := response.Result()
 			assert.Equal(t, tt.want.code, res.StatusCode)
 			body, err := io.ReadAll(res.Body)
+			res.Body.Close()
 
 			require.NoError(t, err)
 			assert.Equal(t, tt.want.body, string(body))

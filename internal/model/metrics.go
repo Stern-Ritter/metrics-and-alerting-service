@@ -46,8 +46,8 @@ func (c *CounterMetric) GetValue() int64 {
 	return c.value
 }
 
-func (g *CounterMetric) ClearValue() {
-	g.value = 0
+func (c *CounterMetric) ClearValue() {
+	c.value = 0
 }
 
 func NewCounter(name string, value int64) CounterMetric {

@@ -20,6 +20,6 @@ func NewMetricsServer(storage *storage.ServerMemStorage, config config.ServerCon
 func (s *MetricsServer) Run() error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/update/", handlers.UpdateMetricHandler(s.storage))
-	err := http.ListenAndServe(s.config.Url, mux)
+	err := http.ListenAndServe(s.config.URL, mux)
 	return err
 }

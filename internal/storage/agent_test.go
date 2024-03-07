@@ -15,11 +15,11 @@ func TestUpdateMonitorMetrics(t *testing.T) {
 
 	testCases := []struct {
 		name          string
-		monitor       model.Monitor
+		monitor       *model.Monitor
 		expectedState state
 	}{{
 		name: "should correct update monitor metrics and related counters",
-		monitor: model.Monitor{
+		monitor: &model.Monitor{
 			Alloc:         1.0,
 			BuckHashSys:   2.0,
 			Frees:         3.0,
@@ -88,7 +88,7 @@ func TestUpdateMonitorMetrics(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			storage := NewAgentMemCache(model.SupportedGaugeMetrics, model.SupportedCounterMetrics)
-			storage.UpdateMonitorMetrics(&tt.monitor)
+			storage.UpdateMonitorMetrics(tt.monitor)
 
 			gauges, counters := storage.GetMetrics()
 

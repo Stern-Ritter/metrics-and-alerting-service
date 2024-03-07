@@ -63,6 +63,7 @@ func sendPostRequest(c *http.Client, url, contentType, metricType, metricName, m
 	}
 
 	body, err := io.ReadAll(res.Body)
+	res.Body.Close()
 	if err != nil {
 		return "", err
 	}
