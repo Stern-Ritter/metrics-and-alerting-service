@@ -1,5 +1,22 @@
 package errors
 
+type InvalidMetricType struct {
+	message string
+	err     error
+}
+
+func (e InvalidMetricType) Error() string {
+	return e.message
+}
+
+func (e InvalidMetricType) Unwrap() error {
+	return e.err
+}
+
+func NewInvalidMetricType(message string, err error) error {
+	return InvalidMetricType{message: message, err: err}
+}
+
 type InvalidMetricName struct {
 	message string
 	err     error

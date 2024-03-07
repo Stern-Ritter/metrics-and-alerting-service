@@ -1,20 +1,18 @@
 package main
 
 import (
-	"net/http"
-
-	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/handlers"
+	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/app"
+	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/config"
+	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/storage"
 )
 
 func main() {
-	if err := run(); err != nil {
+	storage := storage.NewServerMemStorage()
+
+	server := app.NewMetricsServer(&storage, config.MetricsServerConfig)
+
+	err := server.Run()
+	if err != nil {
 		panic(err)
 	}
-}
-
-func run() error {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/update/", handlers.UpdateMetricHandler)
-	err := http.ListenAndServe(`:8080`, mux)
-	return err
 }
