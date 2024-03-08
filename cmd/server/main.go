@@ -8,7 +8,6 @@ import (
 
 func main() {
 	storage := storage.NewServerMemStorage()
-
 	server := app.NewMetricsServer(&storage, config.MetricsServerConfig)
 
 	err := server.Run()

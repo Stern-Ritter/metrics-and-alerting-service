@@ -15,7 +15,7 @@ type ServerConfig struct {
 var MonitoringAgentConfig = AgentConfig{
 	UpdateMetricsInterval: 2 * time.Second,
 	SendMetricsInterval:   10 * time.Second,
-	SendMetricsEndPoint:   "http://localhost:8080/update",
+	SendMetricsEndPoint:   "http://localhost:8080/update/{type}/{name}/{value}",
 }
 
 var MetricsServerConfig = ServerConfig{

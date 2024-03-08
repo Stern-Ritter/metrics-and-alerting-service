@@ -1,29 +1,24 @@
 package transport
 
 import (
-	"fmt"
+	"io"
 	"net/http"
+	"sort"
 	"strings"
 
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
+	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/storage"
-	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/utils"
+	"github.com/go-chi/chi"
 )
 
 func UpdateMetricHandler(storage storage.ServerStorage) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
-		if !isRequestMethodAllowed(req.Method, []string{http.MethodPost}) {
-			http.Error(res, "Only POST requests are allowed.", http.StatusMethodNotAllowed)
-			return
-		}
+		metricType := chi.URLParam(req, "type")
+		metricName := chi.URLParam(req, "name")
+		metricValue := chi.URLParam(req, "value")
 
-		metricType, metricName, metricValue, err := parsePathVariables(req.URL.Path, "/update/")
-		if err != nil {
-			http.Error(res, "The resource you requested has not been found at the specified address", http.StatusNotFound)
-			return
-		}
-
-		err = storage.UpdateMetric(metricType, metricName, metricValue)
+		err := storage.UpdateMetric(metricType, metricName, metricValue)
 		switch err.(type) {
 		case errors.InvalidMetricType, errors.InvalidMetricValue:
 			http.Error(res, err.Error(), http.StatusBadRequest)
@@ -33,31 +28,43 @@ func UpdateMetricHandler(storage storage.ServerStorage) http.HandlerFunc {
 	}
 }
 
-func isRequestMethodAllowed(method string, allowedMethods []string) bool {
-	return utils.Contains(allowedMethods, method)
+func GetMetricHandler(storage storage.ServerStorage) http.HandlerFunc {
+	return func(res http.ResponseWriter, req *http.Request) {
+		metricType := chi.URLParam(req, "type")
+		metricName := chi.URLParam(req, "name")
+
+		body, err := storage.GetMetricValueByTypeAndName(metricType, metricName)
+		switch err.(type) {
+		case errors.InvalidMetricType, errors.InvalidMetricName:
+			http.Error(res, err.Error(), http.StatusNotFound)
+			return
+		}
+		res.Header().Set("Content-type", "text/plain")
+		res.WriteHeader(http.StatusOK)
+		io.WriteString(res, body)
+	}
 }
 
-func parsePathVariables(path string, prefix string) (string, string, string, error) {
-	path = formatPath(path, prefix)
-	pathVariables := strings.Split(path, "/")
+func GetMetricsHandler(storage storage.ServerStorage) http.HandlerFunc {
+	return func(res http.ResponseWriter, req *http.Request) {
+		gauges, counters := storage.GetMetrics()
+		body := getMetricsList(gauges, counters)
 
-	if len(pathVariables) != 3 {
-		return "", "", "", fmt.Errorf("invalid path variables")
+		res.Header().Set("Content-type", "text/html")
+		res.WriteHeader(http.StatusOK)
+		io.WriteString(res, body)
 	}
-
-	metricType := strings.TrimSpace(pathVariables[0])
-	metricName := strings.TrimSpace(pathVariables[1])
-	metricValue := strings.TrimSpace(pathVariables[2])
-	if len(metricType) == 0 || len(metricName) == 0 || len(metricValue) == 0 {
-		return "", "", "", fmt.Errorf("invalid path variables")
-	}
-
-	return metricType, metricName, metricValue, nil
 }
 
-func formatPath(path string, prefix string) string {
-	path = strings.TrimPrefix(path, prefix)
-	path = strings.TrimPrefix(path, "/")
-	path = strings.TrimSuffix(path, "/")
-	return path
+func getMetricsList(gauges map[string]model.GaugeMetric, counters map[string]model.CounterMetric) string {
+	metricsNames := make([]string, 0)
+	for _, metric := range gauges {
+		metricsNames = append(metricsNames, metric.Name)
+	}
+	for _, metric := range counters {
+		metricsNames = append(metricsNames, metric.Name)
+	}
+	sort.Strings(metricsNames)
+
+	return strings.Join(metricsNames, ",\n")
 }

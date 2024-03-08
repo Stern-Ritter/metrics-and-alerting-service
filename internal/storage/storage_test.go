@@ -18,6 +18,7 @@ const (
 	defaultMetricName = "metricName"
 
 	initGaugeMetricValue               = 12.2
+	parsedInitGaugeMetricValue         = "12.2"
 	invalidGaugeMetricValue            = "eleven point one"
 	validGaugeMetricValue              = "11.1"
 	parsedValidGaugeMetricValue        = 11.1
@@ -25,6 +26,7 @@ const (
 	updatedExistingGaugeMetricValue    = 11.1
 
 	initCounterMetricValue               = int64(12)
+	parsedInitCounterMetricValue         = "12"
 	invalidCounterMetricValue            = "11.1"
 	validCounterMetricValue              = "11"
 	parsedValidCounterMetricValue        = 11
@@ -437,6 +439,129 @@ func TestResetMetricValue(t *testing.T) {
 
 			assert.True(t, reflect.DeepEqual(tt.gaugesUpdatedState, gauges))
 			assert.True(t, reflect.DeepEqual(tt.countersUpdatedState, counters))
+		})
+	}
+}
+
+func TestGetMetricValueByTypeAndName(t *testing.T) {
+	type args struct {
+		metricType string
+		metricName string
+	}
+
+	type want struct {
+		value string
+		err   error
+	}
+
+	testCases := []struct {
+		name string
+
+		args              args
+		gaugesInitState   map[string]model.GaugeMetric
+		countersInitState map[string]model.CounterMetric
+
+		want want
+	}{
+		{
+			name: "should return error when get metric value with invalid type",
+
+			args: args{
+				metricType: invalidMetricType,
+				metricName: defaultMetricName,
+			},
+			gaugesInitState:   make(map[string]model.GaugeMetric),
+			countersInitState: make(map[string]model.CounterMetric),
+
+			want: want{
+				value: "",
+				err:   errors.InvalidMetricType{},
+			},
+		},
+		{
+			name: "should return error when get non existing gauge metric value",
+
+			args: args{
+				metricType: validGaugeMetricType,
+				metricName: defaultMetricName,
+			},
+			gaugesInitState:   make(map[string]model.GaugeMetric),
+			countersInitState: make(map[string]model.CounterMetric),
+
+			want: want{
+				value: "",
+				err:   errors.InvalidMetricName{},
+			},
+		},
+
+		{
+			name: "should correct return metric value when get existing gauge metric value",
+
+			args: args{
+				metricType: validGaugeMetricType,
+				metricName: defaultMetricName,
+			},
+			gaugesInitState: map[string]model.GaugeMetric{
+				defaultMetricName: model.NewGauge(defaultMetricName, initGaugeMetricValue),
+			},
+			countersInitState: make(map[string]model.CounterMetric),
+
+			want: want{
+				value: parsedInitGaugeMetricValue,
+				err:   nil,
+			},
+		},
+
+		{
+			name: "should return error when get non existing counter metric value",
+
+			args: args{
+				metricType: validCounterMetricType,
+				metricName: defaultMetricName,
+			},
+			gaugesInitState:   make(map[string]model.GaugeMetric),
+			countersInitState: make(map[string]model.CounterMetric),
+
+			want: want{
+				value: "",
+				err:   errors.InvalidMetricName{},
+			},
+		},
+
+		{
+			name: "should correct return metric value when get existing gauge metric value",
+
+			args: args{
+				metricType: validCounterMetricType,
+				metricName: defaultMetricName,
+			},
+			gaugesInitState: make(map[string]model.GaugeMetric),
+			countersInitState: map[string]model.CounterMetric{
+				defaultMetricName: model.NewCounter(defaultMetricName, initCounterMetricValue),
+			},
+
+			want: want{
+				value: parsedInitCounterMetricValue,
+				err:   nil,
+			},
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			metricsStorage := MemStorage{
+				gauges:   tt.gaugesInitState,
+				counters: tt.countersInitState,
+			}
+
+			value, err := metricsStorage.GetMetricValueByTypeAndName(tt.args.metricType, tt.args.metricName)
+			if tt.want.err != nil {
+				assert.IsType(t, tt.want.err, err)
+			} else {
+				require.NoError(t, err)
+			}
+
+			assert.Equal(t, value, tt.want.value)
 		})
 	}
 }

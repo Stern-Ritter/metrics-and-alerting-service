@@ -15,6 +15,7 @@ type Storage interface {
 	UpdateCounterMetric(metric model.CounterMetric) error
 	UpdateMetric(metricType, metricName, metricValue string) error
 	ResetMetricValue(metricType, metricName string) error
+	GetMetricValueByTypeAndName(metricType, metricName string) (string, error)
 	GetMetrics() (map[string]model.GaugeMetric, map[string]model.CounterMetric)
 }
 
@@ -171,4 +172,31 @@ func (s *MemStorage) GetMetrics() (map[string]model.GaugeMetric, map[string]mode
 	s.countersMu.Unlock()
 
 	return gauges, counters
+}
+
+func (s *MemStorage) GetMetricValueByTypeAndName(metricType, metricName string) (string, error) {
+	var value string
+	var err error
+
+	switch model.MetricType(metricType) {
+	case model.Gauge:
+		metric, exists := s.gauges[metricName]
+		if !exists {
+			err = errors.NewInvalidMetricName(fmt.Sprintf("Gauge metric with name: %s not exists", metricName), nil)
+			break
+		}
+		value = utils.FormatGaugeMetricValue(metric.GetValue())
+	case model.Counter:
+		metric, exists := s.counters[metricName]
+		if !exists {
+			err = errors.NewInvalidMetricName(fmt.Sprintf("Counter metric with name: %s not exists", metricName), nil)
+			break
+		}
+		value = utils.FormatCounterMetricValue(metric.GetValue())
+
+	default:
+		err = errors.NewInvalidMetricType(fmt.Sprintf("Invalid metric type: %s", metricType), nil)
+	}
+
+	return value, err
 }

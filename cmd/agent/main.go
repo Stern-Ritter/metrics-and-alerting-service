@@ -1,17 +1,16 @@
 package main
 
 import (
-	"net/http"
-
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/app"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/config"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/storage"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/utils"
+	"github.com/go-resty/resty/v2"
 )
 
 func main() {
-	httpClient := &http.Client{}
+	httpClient := resty.New()
 	cache := storage.NewAgentMemCache(model.SupportedGaugeMetrics, model.SupportedCounterMetrics)
 	monitor := model.Monitor{}
 	random := utils.NewRandom()

@@ -2,13 +2,14 @@ package transport
 
 import (
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
+	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/storage"
+	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -24,144 +25,25 @@ func (m *MockStorage) UpdateMetric(metricType, metricName, metricValue string) e
 	return args.Error(0)
 }
 
-func TestIsRequestMethodAllowed(t *testing.T) {
-	testCases := []struct {
-		name           string
-		allowedMethods []string
-		method         string
-		want           bool
-	}{
-		{
-			name:           "should return true when method is allowed #1",
-			allowedMethods: []string{http.MethodPost},
-			method:         http.MethodPost,
-			want:           true,
-		},
-		{
-			name:           "should return true when method is allowed #2",
-			allowedMethods: []string{http.MethodGet, http.MethodPost},
-			method:         http.MethodPost,
-			want:           true,
-		},
-
-		{
-			name:           "should return false when method is not allowed #1",
-			allowedMethods: []string{},
-			method:         http.MethodPut,
-			want:           false,
-		},
-		{
-			name:           "should return false when method is not allowed #2",
-			allowedMethods: []string{http.MethodGet, http.MethodPost},
-			method:         http.MethodPut,
-			want:           false,
-		},
-	}
-
-	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			got := isRequestMethodAllowed(tt.method, tt.allowedMethods)
-			assert.Equal(t, tt.want, got)
-		})
-	}
+func (m *MockStorage) GetMetricValueByTypeAndName(metricType, metricName string) (string, error) {
+	args := m.Called(metricType, metricName)
+	return args.String(0), args.Error(1)
 }
 
-func TestParsePathVariables(t *testing.T) {
-	type want struct {
-		metricType  string
-		metricName  string
-		metricValue string
-	}
-	testCases := []struct {
-		name   string
-		path   string
-		prefix string
-		want   want
-		err    bool
-	}{
-		{
-			name:   "should return error when path doesn`t contain all required path variables",
-			path:   "/update/type/name",
-			prefix: "/update",
-			want:   want{},
-			err:    true,
-		},
-		{
-			name:   "should return error when path is empty",
-			path:   "",
-			prefix: "/update",
-			want:   want{},
-			err:    true,
-		},
-		{
-			name:   "should return error when one of required path variables is empty #1",
-			path:   "/update/type/name/",
-			prefix: "/update",
-			want:   want{},
-			err:    true,
-		},
-
-		{
-			name:   "should return error when one of required path variables is empty #2",
-			path:   "/update/type/ /value",
-			prefix: "/update",
-			want:   want{},
-			err:    true,
-		},
-		{
-			name:   "should return error when one of required path variables is empty #3",
-			path:   "/update/ /name/value",
-			prefix: "/update",
-			want:   want{},
-			err:    true,
-		},
-		{
-			name:   "should return parsed path variables when path contains all required path variables #1",
-			path:   "/update/type1/name1/value1",
-			prefix: "/update",
-			want: want{
-				metricType:  "type1",
-				metricName:  "name1",
-				metricValue: "value1",
-			},
-			err: false,
-		},
-		{
-			name:   "should return parsed path variables when path contains all required path variables #2",
-			path:   "/update/type2/name2/value2",
-			prefix: "/update",
-			want: want{
-				metricType:  "type2",
-				metricName:  "name2",
-				metricValue: "value2",
-			},
-			err: false,
-		},
-	}
-
-	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			gotMetricType, gotMetricName, gotMetricValue, gotErr := parsePathVariables(tt.path, tt.prefix)
-			if tt.err {
-				assert.Error(t, gotErr)
-			} else {
-				assert.Equal(t, tt.want.metricType, gotMetricType)
-				assert.Equal(t, tt.want.metricName, gotMetricName)
-				assert.Equal(t, tt.want.metricValue, gotMetricValue)
-			}
-		})
-	}
+func (m *MockStorage) GetMetrics() (map[string]model.GaugeMetric, map[string]model.CounterMetric) {
+	args := m.Called()
+	return args.Get(0).(map[string]model.GaugeMetric), args.Get(1).(map[string]model.CounterMetric)
 }
+
+const (
+	validURL                    = "/update/counter/name/2.0"
+	invalidMetricTypeURL        = "/update/invalidType/name/2.0"
+	invalidMetricValueURL       = "/update/counter/name/two"
+	invalidMetricTypeErrorText  = "Storage error text for invalid metric type"
+	invalidMetricValueErrorText = "Storage error text for invalid metric value"
+)
 
 func TestUpdateMetricHandler(t *testing.T) {
-	const (
-		validPath                   = "/update/validType/name/validValue"
-		invalidPath                 = "/update/validType//validValue"
-		invalidMetricTypePath       = "/update/invalidType/name/validValue"
-		invalidMetricValuePath      = "/update/validType/name/invalidValue"
-		invalidMetricTypeErrorText  = "Storage error text for invalid metric type"
-		invalidMetricValueErrorText = "Storage error text for invalid metric value"
-	)
 	type want struct {
 		code int
 		body string
@@ -169,35 +51,15 @@ func TestUpdateMetricHandler(t *testing.T) {
 
 	testCases := []struct {
 		name         string
-		mathod       string
-		path         string
+		method       string
+		url          string
 		storageError error
 		want         want
 	}{
 		{
-			name:         "should retrun status code 405 when method is not allowed",
-			mathod:       http.MethodGet,
-			path:         validPath,
-			storageError: nil,
-			want: want{
-				code: http.StatusMethodNotAllowed,
-				body: "Only POST requests are allowed.\n",
-			},
-		},
-		{
-			name:         "should retrun status code 404 when path doesn`t contain all required path variables",
-			mathod:       http.MethodPost,
-			path:         invalidPath,
-			storageError: nil,
-			want: want{
-				code: http.StatusNotFound,
-				body: "The resource you requested has not been found at the specified address\n",
-			},
-		},
-		{
-			name:         "should retrun status code 400 when path contains invalid metric type",
-			mathod:       http.MethodPost,
-			path:         invalidMetricTypePath,
+			name:         "should retrun status code 400 when url contains invalid metric type",
+			method:       http.MethodPost,
+			url:          invalidMetricTypeURL,
 			storageError: errors.NewInvalidMetricType(invalidMetricTypeErrorText, nil),
 			want: want{
 				code: http.StatusBadRequest,
@@ -205,9 +67,9 @@ func TestUpdateMetricHandler(t *testing.T) {
 			},
 		},
 		{
-			name:         "should retrun status code 400 when path contains invalid metric value",
-			mathod:       http.MethodPost,
-			path:         invalidMetricValuePath,
+			name:         "should retrun status code 400 when url contains invalid metric value",
+			method:       http.MethodPost,
+			url:          invalidMetricValueURL,
 			storageError: errors.NewInvalidMetricValue(invalidMetricValueErrorText, nil),
 			want: want{
 				code: http.StatusBadRequest,
@@ -215,9 +77,9 @@ func TestUpdateMetricHandler(t *testing.T) {
 			},
 		},
 		{
-			name:         "should retrun status code 200 when path contains all required path variables #1",
-			mathod:       http.MethodPost,
-			path:         validPath,
+			name:         "should retrun status code 200 when url contains valid metric type and value",
+			method:       http.MethodPost,
+			url:          validURL,
 			storageError: nil,
 			want: want{
 				code: http.StatusOK,
@@ -228,26 +90,169 @@ func TestUpdateMetricHandler(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			request := httptest.NewRequest(tt.mathod, tt.path, nil)
-			response := httptest.NewRecorder()
-
 			mockStorage := MockStorage{}
-			mockStorage.On(
-				"UpdateMetric",
-				mock.AnythingOfType("string"),
-				mock.AnythingOfType("string"),
-				mock.AnythingOfType("string")).Return(tt.storageError)
-			handler := UpdateMetricHandler(&mockStorage)
+			mockStorage.On("UpdateMetric", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).
+				Return(tt.storageError)
 
-			handler(response, request)
+			handler := http.HandlerFunc(UpdateMetricHandler(&mockStorage))
+			server := httptest.NewServer(handler)
+			defer server.Close()
 
-			res := response.Result()
-			assert.Equal(t, tt.want.code, res.StatusCode)
-			body, err := io.ReadAll(res.Body)
-			res.Body.Close()
+			req := resty.New().R()
+			req.Method = tt.method
+			req.URL = fmt.Sprintf("%s%s", server.URL, tt.url)
 
-			require.NoError(t, err)
-			assert.Equal(t, tt.want.body, string(body))
+			resp, err := req.Send()
+
+			require.NoError(t, err, "Error making HTTP request")
+			assert.Equal(t, tt.want.code, resp.StatusCode(), "Response code didn't match expected")
+			assert.Equal(t, tt.want.body, string(resp.Body()))
+		})
+	}
+}
+
+func TestGetMetricHandler(t *testing.T) {
+	type storageReturnValue struct {
+		value string
+		err   error
+	}
+
+	type want struct {
+		code int
+		body string
+	}
+
+	testCases := []struct {
+		name               string
+		method             string
+		url                string
+		storageReturnValue storageReturnValue
+		want               want
+	}{
+		{
+			name:   "should retrun status code 404 when url contains not existing metric type",
+			method: http.MethodPost,
+			url:    invalidMetricTypeURL,
+			storageReturnValue: storageReturnValue{
+				value: "",
+				err:   errors.NewInvalidMetricType(invalidMetricTypeErrorText, nil),
+			},
+			want: want{
+				code: http.StatusNotFound,
+				body: fmt.Sprintf("%s\n", invalidMetricTypeErrorText),
+			},
+		},
+		{
+			name:   "should retrun status code 404 when url contains not existing metric name",
+			method: http.MethodPost,
+			url:    invalidMetricValueURL,
+			storageReturnValue: storageReturnValue{
+				value: "",
+				err:   errors.NewInvalidMetricName(invalidMetricValueErrorText, nil),
+			},
+			want: want{
+				code: http.StatusNotFound,
+				body: fmt.Sprintf("%s\n", invalidMetricValueErrorText),
+			},
+		},
+		{
+			name:   "should retrun status code 200 when contains existing metric type and value",
+			method: http.MethodPost,
+			url:    validURL,
+			storageReturnValue: storageReturnValue{
+				value: "1",
+				err:   nil,
+			},
+			want: want{
+				code: http.StatusOK,
+				body: "1",
+			},
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			mockStorage := MockStorage{}
+			mockStorage.On("GetMetricValueByTypeAndName", mock.AnythingOfType("string"), mock.AnythingOfType("string")).
+				Return(tt.storageReturnValue.value, tt.storageReturnValue.err)
+
+			handler := http.HandlerFunc(GetMetricHandler(&mockStorage))
+			server := httptest.NewServer(handler)
+			defer server.Close()
+
+			req := resty.New().R()
+			req.Method = tt.method
+			req.URL = fmt.Sprintf("%s%s", server.URL, tt.url)
+
+			resp, err := req.Send()
+
+			require.NoError(t, err, "Error making HTTP request")
+			assert.Equal(t, tt.want.code, resp.StatusCode(), "Response code didn't match expected")
+			assert.Equal(t, tt.want.body, string(resp.Body()))
+		})
+	}
+}
+
+func TestGetMetricsHandler(t *testing.T) {
+	type storageReturnValue struct {
+		gauges   map[string]model.GaugeMetric
+		counters map[string]model.CounterMetric
+	}
+
+	type want struct {
+		code int
+		body string
+	}
+
+	testCases := []struct {
+		name               string
+		method             string
+		url                string
+		storageReturnValue storageReturnValue
+		want               want
+	}{
+		{
+			name:   "should retrun status code 200 when contains existing metric type and value",
+			method: http.MethodPost,
+			url:    validURL,
+			storageReturnValue: storageReturnValue{
+				gauges: map[string]model.GaugeMetric{
+					"metric1": model.NewGauge("metric1", 1.0),
+					"metric2": model.NewGauge("metric2", 2.0),
+					"metric3": model.NewGauge("metric3", 3.0),
+				},
+				counters: map[string]model.CounterMetric{
+					"metric4": model.NewCounter("metric4", 4),
+					"metric5": model.NewCounter("metric5", 5),
+					"metric6": model.NewCounter("metric6", 6),
+				},
+			},
+			want: want{
+				code: http.StatusOK,
+				body: "metric1,\nmetric2,\nmetric3,\nmetric4,\nmetric5,\nmetric6",
+			},
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			mockStorage := MockStorage{}
+			mockStorage.On("GetMetrics").
+				Return(tt.storageReturnValue.gauges, tt.storageReturnValue.counters)
+
+			handler := http.HandlerFunc(GetMetricsHandler(&mockStorage))
+			server := httptest.NewServer(handler)
+			defer server.Close()
+
+			req := resty.New().R()
+			req.Method = tt.method
+			req.URL = fmt.Sprintf("%s%s", server.URL, tt.url)
+
+			resp, err := req.Send()
+
+			require.NoError(t, err, "Error making HTTP request")
+			assert.Equal(t, tt.want.code, resp.StatusCode(), "Response code didn't match expected")
+			assert.Equal(t, tt.want.body, string(resp.Body()))
 		})
 	}
 }

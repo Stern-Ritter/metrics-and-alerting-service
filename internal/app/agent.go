@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"net/http"
 	"sync"
 	"time"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/storage"
 	tasks "github.com/Stern-Ritter/metrics-and-alerting-service/internal/transport"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/utils"
+	"github.com/go-resty/resty/v2"
 )
 
 const (
@@ -18,14 +18,14 @@ const (
 )
 
 type MonitoringAgent struct {
-	httpClient *http.Client
+	httpClient *resty.Client
 	cache      storage.AgentCache
 	monitor    *model.Monitor
 	random     *utils.Random
 	config     config.AgentConfig
 }
 
-func NewMonitoringAgent(httpClient *http.Client, cache storage.AgentCache, monitor *model.Monitor, random *utils.Random,
+func NewMonitoringAgent(httpClient *resty.Client, cache storage.AgentCache, monitor *model.Monitor, random *utils.Random,
 	config config.AgentConfig) MonitoringAgent {
 	return MonitoringAgent{httpClient, cache, monitor, random, config}
 }

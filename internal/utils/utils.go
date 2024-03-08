@@ -3,6 +3,7 @@ package utils
 import (
 	"fmt"
 	"math/rand"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -42,4 +43,12 @@ func CopyMap[K comparable, V any](source map[K]V) map[K]V {
 	}
 
 	return result
+}
+
+func FormatGaugeMetricValue(value float64) string {
+	return strconv.FormatFloat(value, 'f', -1, 64)
+}
+
+func FormatCounterMetricValue(value int64) string {
+	return strconv.Itoa(int(value))
 }

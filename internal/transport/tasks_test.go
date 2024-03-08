@@ -1,12 +1,12 @@
 package transport
 
 import (
-	"net/http"
 	"testing"
 
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/storage"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/utils"
+	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -31,7 +31,7 @@ func (c *MockAgentMemCache) ResetMetricValue(metricType, metricName string) erro
 }
 
 func TestUpdateMetrics(t *testing.T) {
-	t.Run("should update monitor metric and RandomValue gauge metric once", func(t *testing.T) {
+	t.Run("should update monitor metrics and 'RandomValue' gauge metric once", func(t *testing.T) {
 		mockAgentMemCache := MockAgentMemCache{
 			AgentMemCache: storage.NewAgentMemCache(make(map[string]model.GaugeMetric), make(map[string]model.CounterMetric)),
 		}
@@ -43,13 +43,13 @@ func TestUpdateMetrics(t *testing.T) {
 		UpdateMetrics(&mockAgentMemCache, &monitor, &mockRandom)
 
 		assert.True(t, mockAgentMemCache.AssertNumberOfCalls(t, "UpdateMonitorMetrics", 1), "should update monitor metrics once")
-		assert.True(t, mockAgentMemCache.AssertNumberOfCalls(t, "UpdateGaugeMetric", 1), "should update RandomValue gauge metric once")
+		assert.True(t, mockAgentMemCache.AssertNumberOfCalls(t, "UpdateGaugeMetric", 1), "should update 'RandomValue' gauge metric once")
 	})
 }
 
 func TestSendMetrics(t *testing.T) {
-	t.Run("should update monitor metric and RandomValue gauge metric once", func(t *testing.T) {
-		client := &http.Client{}
+	t.Run("should reset 'PollCount' counter metric once", func(t *testing.T) {
+		client := resty.New()
 		url := "/test"
 		mockAgentMemCache := MockAgentMemCache{
 			AgentMemCache: storage.NewAgentMemCache(make(map[string]model.GaugeMetric), make(map[string]model.CounterMetric)),
@@ -58,6 +58,6 @@ func TestSendMetrics(t *testing.T) {
 		mockAgentMemCache.On("ResetMetricValue", mock.Anything, mock.Anything).Return(nil)
 		SendMetrics(client, url, &mockAgentMemCache)
 
-		assert.True(t, mockAgentMemCache.AssertNumberOfCalls(t, "ResetMetricValue", 1), "should reset metrics counter once")
+		assert.True(t, mockAgentMemCache.AssertNumberOfCalls(t, "ResetMetricValue", 1), "should reset 'PollCount' counter metric once")
 	})
 }
