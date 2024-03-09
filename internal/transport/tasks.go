@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -23,12 +24,12 @@ func UpdateMetrics(cache storage.AgentCache, monitor *model.Monitor, rand *utils
 	cache.UpdateGaugeMetric(model.NewGauge("RandomValue", randomValue))
 }
 
-func SendMetrics(client *resty.Client, endpoint string, cache storage.AgentCache) {
+func SendMetrics(client *resty.Client, url string, endpoint string, cache storage.AgentCache) {
 	gauges, counters := cache.GetMetrics()
 	cache.ResetMetricValue(string(model.Gauge), "PollCount")
 
 	for _, metric := range gauges {
-		_, err := sendPostRequest(client, endpoint, "text/plain",
+		_, err := sendPostRequest(client, url, endpoint, "text/plain",
 			map[string]string{"type": string(metric.Type), "name": metric.Name, "value": utils.FormatGaugeMetricValue(metric.GetValue())})
 		if err != nil {
 			fmt.Println(err)
@@ -36,7 +37,7 @@ func SendMetrics(client *resty.Client, endpoint string, cache storage.AgentCache
 	}
 
 	for _, metric := range counters {
-		_, err := sendPostRequest(client, endpoint, "text/plain",
+		_, err := sendPostRequest(client, url, endpoint, "text/plain",
 			map[string]string{"type": string(metric.Type), "name": metric.Name, "value": utils.FormatCounterMetricValue(metric.GetValue())})
 		if err != nil {
 			fmt.Println(err)
@@ -44,11 +45,11 @@ func SendMetrics(client *resty.Client, endpoint string, cache storage.AgentCache
 	}
 }
 
-func sendPostRequest(client *resty.Client, endpoint, contentType string, pathParams map[string]string) (*resty.Response, error) {
+func sendPostRequest(client *resty.Client, url, endpoint, contentType string, pathParams map[string]string) (*resty.Response, error) {
 	resp, err := client.R().
 		SetHeader("Content-Type", contentType).
 		SetPathParams(pathParams).
-		Get(endpoint)
+		Get(strings.Join([]string{url, endpoint}, ""))
 
 	return resp, err
 }

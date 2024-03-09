@@ -38,7 +38,9 @@ func (m *MonitoringAgent) Run() {
 	time.AfterFunc(time.Hour, cancel)
 
 	updateMetricsTask := func() { tasks.UpdateMetrics(m.cache, m.monitor, m.random) }
-	sendMetricsTask := func() { tasks.SendMetrics(m.httpClient, m.config.SendMetricsEndPoint, m.cache) }
+	sendMetricsTask := func() {
+		tasks.SendMetrics(m.httpClient, m.config.SendMetricsURL.String(), m.config.SendMetricsEndPoint, m.cache)
+	}
 
 	tasks.SetInterval(ctx, &wg, updateMetricsTask, m.config.UpdateMetricsInterval)
 	tasks.SetInterval(ctx, &wg, sendMetricsTask, m.config.SendMetricsInterval)

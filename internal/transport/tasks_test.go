@@ -50,13 +50,14 @@ func TestUpdateMetrics(t *testing.T) {
 func TestSendMetrics(t *testing.T) {
 	t.Run("should reset 'PollCount' counter metric once", func(t *testing.T) {
 		client := resty.New()
-		url := "/test"
+		url := ":8080"
+		endpoint := "/test"
 		mockAgentMemCache := MockAgentMemCache{
 			AgentMemCache: storage.NewAgentMemCache(make(map[string]model.GaugeMetric), make(map[string]model.CounterMetric)),
 		}
 
 		mockAgentMemCache.On("ResetMetricValue", mock.Anything, mock.Anything).Return(nil)
-		SendMetrics(client, url, &mockAgentMemCache)
+		SendMetrics(client, url, endpoint, &mockAgentMemCache)
 
 		assert.True(t, mockAgentMemCache.AssertNumberOfCalls(t, "ResetMetricValue", 1), "should reset 'PollCount' counter metric once")
 	})

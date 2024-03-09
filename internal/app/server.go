@@ -1,6 +1,7 @@
 package app
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/config"
@@ -18,12 +19,11 @@ func NewMetricsServer(storage *storage.ServerMemStorage, config config.ServerCon
 	return MetricsServer{storage, config}
 }
 
-func (s *MetricsServer) Run() error {
+func (s *MetricsServer) Run() {
 	router := chi.NewRouter()
 	router.Get("/", handlers.GetMetricsHandler(s.storage))
 	router.Post("/update/{type}/{name}/{value}", handlers.UpdateMetricHandler(s.storage))
 	router.Get("/value/{type}/{name}", handlers.GetMetricHandler(s.storage))
 
-	err := http.ListenAndServe(s.config.URL, router)
-	return err
+	log.Fatal(http.ListenAndServe(s.config.URL.String(), router))
 }

@@ -1,17 +1,30 @@
 package main
 
 import (
+	"flag"
+
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/app"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/config"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/storage"
 )
 
-func main() {
-	storage := storage.NewServerMemStorage()
-	server := app.NewMetricsServer(&storage, config.MetricsServerConfig)
+var metricsServerConfig = config.ServerConfig{
+	URL: config.URL{
+		Host: "localhost",
+		Port: 8080,
+	},
+}
 
-	err := server.Run()
-	if err != nil {
-		panic(err)
-	}
+func parseFlags() {
+	flag.Var(&metricsServerConfig.URL, "a", "address and port to run server in format <host>:<port>")
+	flag.Parse()
+}
+
+func main() {
+	parseFlags()
+
+	storage := storage.NewServerMemStorage()
+	server := app.NewMetricsServer(&storage, metricsServerConfig)
+
+	server.Run()
 }
