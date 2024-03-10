@@ -49,7 +49,7 @@ func sendPostRequest(client *resty.Client, url, endpoint, contentType string, pa
 	resp, err := client.R().
 		SetHeader("Content-Type", contentType).
 		SetPathParams(pathParams).
-		Get(strings.Join([]string{url, endpoint}, ""))
+		Get(utils.AddProtocolPrefix(strings.Join([]string{url, endpoint}, "")))
 
 	return resp, err
 }

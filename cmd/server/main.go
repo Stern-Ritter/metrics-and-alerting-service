@@ -1,30 +1,32 @@
 package main
 
 import (
-	"flag"
+	"log"
+	"net/http"
 
-	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/app"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/config"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/storage"
+	handlers "github.com/Stern-Ritter/metrics-and-alerting-service/internal/transport"
+	"github.com/go-chi/chi"
 )
 
-var metricsServerConfig = config.ServerConfig{
-	URL: config.URL{
-		Host: "localhost",
-		Port: 8080,
-	},
-}
-
-func parseFlags() {
-	flag.Var(&metricsServerConfig.URL, "a", "address and port to run server in format <host>:<port>")
-	flag.Parse()
-}
-
 func main() {
-	parseFlags()
+	config := config.ServerConfig{}
+	err := config.ParseFlags()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	storage := storage.NewServerMemStorage()
-	server := app.NewMetricsServer(&storage, metricsServerConfig)
+	run(&storage, config)
+}
 
-	server.Run()
+func run(storage *storage.ServerMemStorage, config config.ServerConfig) {
+	router := chi.NewRouter()
+	router.Get("/", handlers.GetMetricsHandler(storage))
+	router.Post("/update/{type}/{name}/{value}", handlers.UpdateMetricHandler(storage))
+	router.Get("/value/{type}/{name}", handlers.GetMetricHandler(storage))
+
+	err := http.ListenAndServe(config.URL, router)
+	log.Fatal(err)
 }

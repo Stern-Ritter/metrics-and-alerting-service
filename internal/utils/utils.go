@@ -3,6 +3,7 @@ package utils
 import (
 	"fmt"
 	"math/rand"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -51,4 +52,24 @@ func FormatGaugeMetricValue(value float64) string {
 
 func FormatCounterMetricValue(value int64) string {
 	return strconv.Itoa(int(value))
+}
+
+func ValidateHostnamePort(hp string) error {
+	pattern := `[^\:]+:[0-9]{1,5}`
+	regexp, err := regexp.Compile(pattern)
+	if err != nil {
+		return err
+	}
+
+	if !regexp.MatchString(hp) {
+		return fmt.Errorf("invalid hostname and port format:%s, hould be: <host>:<port>", hp)
+	}
+	return nil
+}
+
+func AddProtocolPrefix(url string) string {
+	if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
+		return strings.Join([]string{"http://", url}, "")
+	}
+	return url
 }
