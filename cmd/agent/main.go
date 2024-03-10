@@ -11,6 +11,7 @@ import (
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/storage"
 	tasks "github.com/Stern-Ritter/metrics-and-alerting-service/internal/transport"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/utils"
+	"github.com/caarlos0/env"
 	"github.com/go-resty/resty/v2"
 )
 
@@ -19,10 +20,9 @@ const (
 )
 
 func main() {
-	config := config.AgentConfig{
+	config, err := getConfig(config.AgentConfig{
 		SendMetricsEndPoint: "/update/{type}/{name}/{value}",
-	}
-	err := config.ParseFlags()
+	})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -53,4 +53,18 @@ func run(httpClient *resty.Client, cache storage.AgentCache, monitor *model.Moni
 	tasks.SetInterval(ctx, &wg, sendMetricsTask, time.Duration(config.SendMetricsInterval)*time.Second)
 
 	wg.Wait()
+}
+
+func getConfig(c config.AgentConfig) (config.AgentConfig, error) {
+	err := c.ParseFlags()
+	if err != nil {
+		return c, err
+	}
+
+	err = env.Parse(&c)
+	if err != nil {
+		return c, err
+	}
+
+	return c, nil
 }

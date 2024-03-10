@@ -7,12 +7,12 @@ import (
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/config"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/storage"
 	handlers "github.com/Stern-Ritter/metrics-and-alerting-service/internal/transport"
+	"github.com/caarlos0/env"
 	"github.com/go-chi/chi"
 )
 
 func main() {
-	config := config.ServerConfig{}
-	err := config.ParseFlags()
+	config, err := getConfig(config.ServerConfig{})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -29,4 +29,18 @@ func run(storage *storage.ServerMemStorage, config config.ServerConfig) {
 
 	err := http.ListenAndServe(config.URL, router)
 	log.Fatal(err)
+}
+
+func getConfig(c config.ServerConfig) (config.ServerConfig, error) {
+	err := c.ParseFlags()
+	if err != nil {
+		return c, err
+	}
+
+	err = env.Parse(&c)
+	if err != nil {
+		return c, err
+	}
+
+	return c, nil
 }
