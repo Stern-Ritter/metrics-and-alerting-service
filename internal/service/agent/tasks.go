@@ -17,12 +17,19 @@ func UpdateMetrics(cache storage.AgentCache, monitor *model.Monitor, rand *utils
 	randomValue, _ := rand.Float(0.1, 99.99)
 
 	cache.UpdateMonitorMetrics(monitor)
-	cache.UpdateGaugeMetric(model.NewGauge("RandomValue", randomValue))
+	err := cache.UpdateGaugeMetric(model.NewGauge("RandomValue", randomValue))
+	if err != nil {
+		fmt.Println(err)
+	}
 }
 
 func SendMetrics(client *resty.Client, url string, endpoint string, cache storage.AgentCache) {
 	gauges, counters := cache.GetMetrics()
-	cache.ResetMetricValue(string(model.Gauge), "PollCount")
+
+	err := cache.ResetMetricValue(string(model.Gauge), "PollCount")
+	if err != nil {
+		fmt.Println(err)
+	}
 
 	for _, metric := range gauges {
 		_, err := sendPostRequest(client, url, endpoint, "text/plain",

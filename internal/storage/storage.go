@@ -82,14 +82,20 @@ func (s *MemStorage) UpdateMetric(metricType, metricName, metricValue string) er
 			return err
 		}
 		metric := model.NewGauge(metricName, value)
-		s.UpdateGaugeMetric(metric)
+		err = s.UpdateGaugeMetric(metric)
+		if err != nil {
+			return err
+		}
 	case model.Counter:
 		value, err := parseCounterMetricValue(metricValue)
 		if err != nil {
 			return err
 		}
 		metric := model.NewCounter(metricName, value)
-		s.UpdateCounterMetric(metric)
+		err = s.UpdateCounterMetric(metric)
+		if err != nil {
+			return err
+		}
 
 	default:
 		return errors.NewInvalidMetricType(fmt.Sprintf("Invalid metric type: %s", metricType), nil)
@@ -120,7 +126,7 @@ func parseCounterMetricValue(v string) (int64, error) {
 func (s *MemStorage) ResetMetricValue(metricType, metricName string) error {
 	switch model.MetricType(metricType) {
 	case model.Gauge:
-		err := s.checkGaugeMetricNameWhenReset(metricName)
+		err := s.CheckGaugeMetricNameWhenReset(metricName)
 		if err != nil {
 			return err
 		}
@@ -129,7 +135,7 @@ func (s *MemStorage) ResetMetricValue(metricType, metricName string) error {
 		savedMetric.SetValue(0)
 		s.gauges[savedMetric.Name] = savedMetric
 	case model.Counter:
-		err := s.checkCounterMetricNameWhenReset(metricName)
+		err := s.CheckCounterMetricNameWhenReset(metricName)
 		if err != nil {
 			return err
 		}
@@ -144,7 +150,7 @@ func (s *MemStorage) ResetMetricValue(metricType, metricName string) error {
 	return nil
 }
 
-func (s *MemStorage) checkGaugeMetricNameWhenReset(name string) error {
+func (s *MemStorage) CheckGaugeMetricNameWhenReset(name string) error {
 	_, exists := s.gauges[name]
 	if !exists {
 		return errors.NewInvalidMetricName(fmt.Sprintf("Gauge metric with name: %s not exists", name), nil)
@@ -153,7 +159,7 @@ func (s *MemStorage) checkGaugeMetricNameWhenReset(name string) error {
 	return nil
 }
 
-func (s *MemStorage) checkCounterMetricNameWhenReset(name string) error {
+func (s *MemStorage) CheckCounterMetricNameWhenReset(name string) error {
 	_, exists := s.counters[name]
 	if !exists {
 		return errors.NewInvalidMetricName(fmt.Sprintf("Counter metric with name: %s not exists", name), nil)

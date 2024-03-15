@@ -37,7 +37,10 @@ func (s *Server) GetMetricHandler(res http.ResponseWriter, req *http.Request) {
 	}
 	res.Header().Set("Content-type", "text/plain")
 	res.WriteHeader(http.StatusOK)
-	io.WriteString(res, body)
+	_, err = io.WriteString(res, body)
+	if err != nil {
+		http.Error(res, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 func (s *Server) GetMetricsHandler(res http.ResponseWriter, req *http.Request) {
@@ -46,7 +49,10 @@ func (s *Server) GetMetricsHandler(res http.ResponseWriter, req *http.Request) {
 
 	res.Header().Set("Content-type", "text/html")
 	res.WriteHeader(http.StatusOK)
-	io.WriteString(res, body)
+	_, err := io.WriteString(res, body)
+	if err != nil {
+		http.Error(res, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 func getMetricsString(gauges map[string]model.GaugeMetric, counters map[string]model.CounterMetric) string {

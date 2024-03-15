@@ -58,11 +58,14 @@ func (c *AgentMemCache) UpdateMonitorMetrics(m *model.Monitor) {
 func (c *AgentMemCache) updateMonitorMetric(metric model.GaugeMetric) {
 	err := c.UpdateGaugeMetric(metric)
 	if err == nil {
-		c.UpdateCounterMetric(model.NewCounter("PollCount", 1))
+		err := c.UpdateCounterMetric(model.NewCounter("PollCount", 1))
+		if err != nil {
+			fmt.Println(err)
+		}
 	}
 }
 
-func (c *AgentMemCache) checkGaugeMetricNameWhenUpdate(name string) error {
+func (c *AgentMemCache) CheckGaugeMetricNameWhenUpdate(name string) error {
 	_, exists := c.gauges[name]
 	if !exists {
 		return errors.NewInvalidMetricName(fmt.Sprintf("Invalid metric name: %s", name), nil)
@@ -70,7 +73,7 @@ func (c *AgentMemCache) checkGaugeMetricNameWhenUpdate(name string) error {
 	return nil
 }
 
-func (c *AgentMemCache) checkCounterMetricNameWhenUpdate(name string) error {
+func (c *AgentMemCache) CheckCounterMetricNameWhenUpdate(name string) error {
 	_, exists := c.counters[name]
 	if !exists {
 		return errors.NewInvalidMetricName(fmt.Sprintf("Invalid metric name: %s", name), nil)
