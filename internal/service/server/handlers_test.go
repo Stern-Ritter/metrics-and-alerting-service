@@ -1,4 +1,4 @@
-package transport
+package server
 
 import (
 	"fmt"
@@ -8,32 +8,11 @@ import (
 
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model"
-	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/storage"
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
-
-type MockStorage struct {
-	storage.ServerMemStorage
-	mock.Mock
-}
-
-func (m *MockStorage) UpdateMetric(metricType, metricName, metricValue string) error {
-	args := m.Called(metricType, metricName, metricValue)
-	return args.Error(0)
-}
-
-func (m *MockStorage) GetMetricValueByTypeAndName(metricType, metricName string) (string, error) {
-	args := m.Called(metricType, metricName)
-	return args.String(0), args.Error(1)
-}
-
-func (m *MockStorage) GetMetrics() (map[string]model.GaugeMetric, map[string]model.CounterMetric) {
-	args := m.Called()
-	return args.Get(0).(map[string]model.GaugeMetric), args.Get(1).(map[string]model.CounterMetric)
-}
 
 const (
 	validURL                    = "/update/counter/name/2.0"
@@ -90,11 +69,15 @@ func TestUpdateMetricHandler(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			mockStorage := MockStorage{}
-			mockStorage.On("UpdateMetric", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).
+			ctrl := gomock.NewController(t)
+			mockStorage := NewMockServerStorage(ctrl)
+			mockStorage.
+				EXPECT().
+				UpdateMetric(gomock.Any(), gomock.Any(), gomock.Any()).
 				Return(tt.storageError)
+			s := NewServer(mockStorage)
 
-			handler := http.HandlerFunc(UpdateMetricHandler(&mockStorage))
+			handler := http.HandlerFunc(s.UpdateMetricHandler)
 			server := httptest.NewServer(handler)
 			defer server.Close()
 
@@ -172,11 +155,15 @@ func TestGetMetricHandler(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			mockStorage := MockStorage{}
-			mockStorage.On("GetMetricValueByTypeAndName", mock.AnythingOfType("string"), mock.AnythingOfType("string")).
+			ctrl := gomock.NewController(t)
+			mockStorage := NewMockServerStorage(ctrl)
+			mockStorage.
+				EXPECT().
+				GetMetricValueByTypeAndName(gomock.Any(), gomock.Any()).
 				Return(tt.storageReturnValue.value, tt.storageReturnValue.err)
+			s := NewServer(mockStorage)
 
-			handler := http.HandlerFunc(GetMetricHandler(&mockStorage))
+			handler := http.HandlerFunc(s.GetMetricHandler)
 			server := httptest.NewServer(handler)
 			defer server.Close()
 
@@ -236,11 +223,15 @@ func TestGetMetricsHandler(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			mockStorage := MockStorage{}
-			mockStorage.On("GetMetrics").
+			ctrl := gomock.NewController(t)
+			mockStorage := NewMockServerStorage(ctrl)
+			mockStorage.
+				EXPECT().
+				GetMetrics().
 				Return(tt.storageReturnValue.gauges, tt.storageReturnValue.counters)
+			s := NewServer(mockStorage)
 
-			handler := http.HandlerFunc(GetMetricsHandler(&mockStorage))
+			handler := http.HandlerFunc(s.GetMetricsHandler)
 			server := httptest.NewServer(handler)
 			defer server.Close()
 
