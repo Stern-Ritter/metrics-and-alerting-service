@@ -1,5 +1,6 @@
 package server
 
 type ServerConfig struct {
-	URL string `env:"ADDRESS"`
+	URL       string `env:"ADDRESS"`
+	LoggerLvl string
 }
