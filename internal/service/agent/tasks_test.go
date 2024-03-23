@@ -3,7 +3,8 @@ package agent
 import (
 	"testing"
 
-	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model"
+	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
+	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/monitors"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/storage"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/utils"
 	"github.com/go-resty/resty/v2"
@@ -16,13 +17,13 @@ type MockAgentMemCache struct {
 	mock.Mock
 }
 
-func (c *MockAgentMemCache) UpdateMonitorMetrics(model *model.Monitor) {
+func (c *MockAgentMemCache) UpdateMonitorMetrics(model *monitors.Monitor) {
 	c.Called(model)
 }
 
-func (c *MockAgentMemCache) UpdateGaugeMetric(metric model.GaugeMetric) error {
+func (c *MockAgentMemCache) UpdateGaugeMetric(metric metrics.GaugeMetric) (metrics.GaugeMetric, error) {
 	args := c.Called(metric)
-	return args.Error(0)
+	return args.Get(0).(metrics.GaugeMetric), args.Error(1)
 }
 
 func (c *MockAgentMemCache) ResetMetricValue(metricType, metricName string) error {
@@ -33,13 +34,13 @@ func (c *MockAgentMemCache) ResetMetricValue(metricType, metricName string) erro
 func TestUpdateMetrics(t *testing.T) {
 	t.Run("should update monitor metrics and 'RandomValue' gauge metric once", func(t *testing.T) {
 		mockAgentMemCache := MockAgentMemCache{
-			AgentMemCache: storage.NewAgentMemCache(make(map[string]model.GaugeMetric), make(map[string]model.CounterMetric)),
+			AgentMemCache: storage.NewAgentMemCache(make(map[string]metrics.GaugeMetric), make(map[string]metrics.CounterMetric)),
 		}
-		monitor := model.Monitor{}
+		monitor := monitors.Monitor{}
 		mockRandom := utils.NewRandom()
 
 		mockAgentMemCache.On("UpdateMonitorMetrics", &monitor).Return(nil)
-		mockAgentMemCache.On("UpdateGaugeMetric", mock.Anything).Return(nil)
+		mockAgentMemCache.On("UpdateGaugeMetric", mock.Anything).Return(metrics.GaugeMetric{}, nil)
 		UpdateMetrics(&mockAgentMemCache, &monitor, &mockRandom)
 
 		assert.True(t, mockAgentMemCache.AssertNumberOfCalls(t, "UpdateMonitorMetrics", 1), "should update monitor metrics once")
@@ -53,7 +54,7 @@ func TestSendMetrics(t *testing.T) {
 		url := ":8080"
 		endpoint := "/test"
 		mockAgentMemCache := MockAgentMemCache{
-			AgentMemCache: storage.NewAgentMemCache(make(map[string]model.GaugeMetric), make(map[string]model.CounterMetric)),
+			AgentMemCache: storage.NewAgentMemCache(make(map[string]metrics.GaugeMetric), make(map[string]metrics.CounterMetric)),
 		}
 
 		mockAgentMemCache.On("ResetMetricValue", mock.Anything, mock.Anything).Return(nil)

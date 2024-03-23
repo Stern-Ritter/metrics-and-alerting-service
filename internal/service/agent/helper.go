@@ -25,11 +25,11 @@ func SetInterval(ctx context.Context, wg *sync.WaitGroup, task func(), interval 
 	}()
 }
 
-func sendPostRequest(client *resty.Client, url, endpoint, contentType string, pathParams map[string]string) (*resty.Response, error) {
+func sendPostRequest(client *resty.Client, url, endpoint, contentType string, body []byte) (*resty.Response, error) {
 	resp, err := client.R().
 		SetHeader("Content-Type", contentType).
-		SetPathParams(pathParams).
-		Get(utils.AddProtocolPrefix(strings.Join([]string{url, endpoint}, "")))
+		SetBody(body).
+		Post(utils.AddProtocolPrefix(strings.Join([]string{url, endpoint}, "")))
 
 	return resp, err
 }
