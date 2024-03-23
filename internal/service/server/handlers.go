@@ -1,6 +1,8 @@
 package server
 
 import (
+	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"sort"
@@ -11,7 +13,7 @@ import (
 	"github.com/go-chi/chi"
 )
 
-func (s *Server) UpdateMetricHandler(res http.ResponseWriter, req *http.Request) {
+func (s *Server) UpdateMetricHandlerWithPathVars(res http.ResponseWriter, req *http.Request) {
 	metricType := chi.URLParam(req, "type")
 	metricName := chi.URLParam(req, "name")
 	metricValue := chi.URLParam(req, "value")
@@ -25,7 +27,48 @@ func (s *Server) UpdateMetricHandler(res http.ResponseWriter, req *http.Request)
 	res.WriteHeader(http.StatusOK)
 }
 
-func (s *Server) GetMetricHandler(res http.ResponseWriter, req *http.Request) {
+func (s *Server) UpdateMetricHandlerWithBody(res http.ResponseWriter, req *http.Request) {
+	metric := metrics.Metrics{}
+	dec := json.NewDecoder(req.Body)
+	if err := dec.Decode(&metric); err != nil {
+		http.Error(res, "Error decode request JSON body", http.StatusBadRequest)
+		return
+	}
+
+	switch metrics.MetricType(metric.MType) {
+	case metrics.Gauge:
+		updatedMetric, err := s.storage.UpdateGaugeMetric(metrics.MetricsToGaugeMetric(metric))
+		if err != nil {
+			http.Error(res, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		value := updatedMetric.GetValue()
+		metric.Value = &value
+
+	case metrics.Counter:
+		updatedMetric, err := s.storage.UpdateCounterMetric(metrics.MetricsToCounterMetric(metric))
+		if err != nil {
+			http.Error(res, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		delta := updatedMetric.GetValue()
+		metric.Delta = &delta
+
+	default:
+		http.Error(res, fmt.Sprintf("Invalid metric type: %s", metric.MType), http.StatusBadRequest)
+		return
+	}
+
+	res.Header().Set("Content-Type", "application/json")
+	enc := json.NewEncoder(res)
+	if err := enc.Encode(metric); err != nil {
+		http.Error(res, "Error encoding response", http.StatusInternalServerError)
+	}
+}
+
+func (s *Server) GetMetricHandlerWithPathVars(res http.ResponseWriter, req *http.Request) {
 	metricType := chi.URLParam(req, "type")
 	metricName := chi.URLParam(req, "name")
 
@@ -40,6 +83,47 @@ func (s *Server) GetMetricHandler(res http.ResponseWriter, req *http.Request) {
 	_, err = io.WriteString(res, body)
 	if err != nil {
 		http.Error(res, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func (s *Server) GetMetricHandlerWithBody(res http.ResponseWriter, req *http.Request) {
+	metric := metrics.Metrics{}
+	dec := json.NewDecoder(req.Body)
+	if err := dec.Decode(&metric); err != nil {
+		http.Error(res, "Error decode request JSON body", http.StatusBadRequest)
+		return
+	}
+
+	switch metrics.MetricType(metric.MType) {
+	case metrics.Gauge:
+		savedMetric, err := s.storage.GetGaugeMetric(metric.ID)
+		if err != nil {
+			metric.Value = &metrics.ZeroGaugeMetricValue
+			break
+		}
+
+		value := savedMetric.GetValue()
+		metric.Value = &value
+
+	case metrics.Counter:
+		savedMetric, err := s.storage.GetCounterMetric(metric.ID)
+		if err != nil {
+			metric.Delta = &metrics.ZeroCounterMetricValue
+			break
+		}
+
+		delta := savedMetric.GetValue()
+		metric.Delta = &delta
+
+	default:
+		http.Error(res, fmt.Sprintf("Invalid metric type: %s", metric.MType), http.StatusBadRequest)
+		return
+	}
+
+	res.Header().Set("Content-Type", "application/json")
+	enc := json.NewEncoder(res)
+	if err := enc.Encode(metric); err != nil {
+		http.Error(res, "Error encoding response", http.StatusInternalServerError)
 	}
 }
 

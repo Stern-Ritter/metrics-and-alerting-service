@@ -58,9 +58,9 @@ func (c *AgentMemCache) UpdateMonitorMetrics(m *monitors.Monitor) {
 }
 
 func (c *AgentMemCache) updateMonitorMetric(metric metrics.GaugeMetric) {
-	err := c.UpdateGaugeMetric(metric)
+	_, err := c.UpdateGaugeMetric(metric)
 	if err == nil {
-		err := c.UpdateCounterMetric(metrics.NewCounter("PollCount", 1))
+		_, err := c.UpdateCounterMetric(metrics.NewCounter("PollCount", 1))
 		if err != nil {
 			fmt.Println(err)
 		}

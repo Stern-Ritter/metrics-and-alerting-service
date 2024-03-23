@@ -77,7 +77,7 @@ func TestUpdateMetricHandler(t *testing.T) {
 				Return(tt.storageError)
 			s := NewServer(mockStorage)
 
-			handler := http.HandlerFunc(s.UpdateMetricHandler)
+			handler := http.HandlerFunc(s.UpdateMetricHandlerWithPathVars)
 			server := httptest.NewServer(handler)
 			defer server.Close()
 
@@ -163,7 +163,7 @@ func TestGetMetricHandler(t *testing.T) {
 				Return(tt.storageReturnValue.value, tt.storageReturnValue.err)
 			s := NewServer(mockStorage)
 
-			handler := http.HandlerFunc(s.GetMetricHandler)
+			handler := http.HandlerFunc(s.GetMetricHandlerWithPathVars)
 			server := httptest.NewServer(handler)
 			defer server.Close()
 

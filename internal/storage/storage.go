@@ -11,11 +11,13 @@ import (
 )
 
 type Storage interface {
-	UpdateGaugeMetric(metric metrics.GaugeMetric) error
-	UpdateCounterMetric(metric metrics.CounterMetric) error
+	UpdateGaugeMetric(metric metrics.GaugeMetric) (metrics.GaugeMetric, error)
+	UpdateCounterMetric(metric metrics.CounterMetric) (metrics.CounterMetric, error)
 	UpdateMetric(metricType, metricName, metricValue string) error
 	ResetMetricValue(metricType, metricName string) error
 	GetMetricValueByTypeAndName(metricType, metricName string) (string, error)
+	GetGaugeMetric(metricName string) (metrics.GaugeMetric, error)
+	GetCounterMetric(metricName string) (metrics.CounterMetric, error)
 	GetMetrics() (map[string]metrics.GaugeMetric, map[string]metrics.CounterMetric)
 }
 
@@ -26,48 +28,46 @@ type MemStorage struct {
 	counters   map[string]metrics.CounterMetric
 }
 
-func (s *MemStorage) UpdateGaugeMetric(metric metrics.GaugeMetric) error {
+func (s *MemStorage) UpdateGaugeMetric(metric metrics.GaugeMetric) (metrics.GaugeMetric, error) {
 	s.gaugesMu.Lock()
 	defer s.gaugesMu.Unlock()
 
 	err := s.checkGaugeMetricNameWhenUpdate(metric.Name)
 	if err != nil {
-		return err
+		return metrics.GaugeMetric{}, err
 	}
 
-	savedMetric, exists := s.gauges[metric.Name]
-	if exists {
+	if savedMetric, exists := s.gauges[metric.Name]; exists {
 		savedMetric.SetValue(metric.GetValue())
-		s.gauges[savedMetric.Name] = savedMetric
+		s.gauges[metric.Name] = savedMetric
 	} else {
 		s.gauges[metric.Name] = metric
 	}
 
-	return nil
+	return s.gauges[metric.Name], nil
 }
 
 func (s *MemStorage) checkGaugeMetricNameWhenUpdate(name string) error {
 	return nil
 }
 
-func (s *MemStorage) UpdateCounterMetric(metric metrics.CounterMetric) error {
+func (s *MemStorage) UpdateCounterMetric(metric metrics.CounterMetric) (metrics.CounterMetric, error) {
 	s.countersMu.Lock()
 	defer s.countersMu.Unlock()
 
 	err := s.checkCounterMetricNameWhenUpdate(metric.Name)
 	if err != nil {
-		return err
+		return metrics.CounterMetric{}, nil
 	}
 
-	savedMetric, exists := s.counters[metric.Name]
-	if exists {
+	if savedMetric, exists := s.counters[metric.Name]; exists {
 		savedMetric.SetValue(metric.GetValue())
-		s.counters[savedMetric.Name] = savedMetric
+		s.counters[metric.Name] = savedMetric
 	} else {
 		s.counters[metric.Name] = metric
 	}
 
-	return nil
+	return s.counters[metric.Name], nil
 }
 
 func (s *MemStorage) checkCounterMetricNameWhenUpdate(name string) error {
@@ -82,7 +82,7 @@ func (s *MemStorage) UpdateMetric(metricType, metricName, metricValue string) er
 			return err
 		}
 		metric := metrics.NewGauge(metricName, value)
-		err = s.UpdateGaugeMetric(metric)
+		_, err = s.UpdateGaugeMetric(metric)
 		if err != nil {
 			return err
 		}
@@ -92,7 +92,7 @@ func (s *MemStorage) UpdateMetric(metricType, metricName, metricValue string) er
 			return err
 		}
 		metric := metrics.NewCounter(metricName, value)
-		err = s.UpdateCounterMetric(metric)
+		_, err = s.UpdateCounterMetric(metric)
 		if err != nil {
 			return err
 		}
@@ -186,14 +186,18 @@ func (s *MemStorage) GetMetricValueByTypeAndName(metricType, metricName string) 
 
 	switch metrics.MetricType(metricType) {
 	case metrics.Gauge:
+		s.gaugesMu.Lock()
 		metric, exists := s.gauges[metricName]
+		s.gaugesMu.Unlock()
 		if !exists {
 			err = errors.NewInvalidMetricName(fmt.Sprintf("Gauge metric with name: %s not exists", metricName), nil)
 			break
 		}
 		value = utils.FormatGaugeMetricValue(metric.GetValue())
 	case metrics.Counter:
+		s.countersMu.Lock()
 		metric, exists := s.counters[metricName]
+		s.countersMu.Unlock()
 		if !exists {
 			err = errors.NewInvalidMetricName(fmt.Sprintf("Counter metric with name: %s not exists", metricName), nil)
 			break
@@ -205,4 +209,28 @@ func (s *MemStorage) GetMetricValueByTypeAndName(metricType, metricName string) 
 	}
 
 	return value, err
+}
+
+func (s *MemStorage) GetGaugeMetric(metricName string) (metrics.GaugeMetric, error) {
+	s.gaugesMu.Lock()
+	metric, exists := s.gauges[metricName]
+	s.gaugesMu.Unlock()
+
+	if !exists {
+		return metrics.GaugeMetric{}, errors.NewInvalidMetricName(fmt.Sprintf("Gauge metric with name: %s not exists", metricName), nil)
+	}
+
+	return metric, nil
+}
+
+func (s *MemStorage) GetCounterMetric(metricName string) (metrics.CounterMetric, error) {
+	s.countersMu.Lock()
+	metric, exists := s.counters[metricName]
+	s.countersMu.Unlock()
+
+	if !exists {
+		return metrics.CounterMetric{}, errors.NewInvalidMetricName(fmt.Sprintf("Counter metric with name: %s not exists", metricName), nil)
+	}
+
+	return metric, nil
 }

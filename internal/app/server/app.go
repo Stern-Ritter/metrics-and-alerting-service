@@ -26,8 +26,12 @@ func Run(s *service.Server) error {
 	router := chi.NewRouter()
 	router.Use(logger.RequestLogger)
 	router.Get("/", s.GetMetricsHandler)
-	router.Post("/update/{type}/{name}/{value}", s.UpdateMetricHandler)
-	router.Get("/value/{type}/{name}", s.GetMetricHandler)
+	router.Post("/update", s.UpdateMetricHandlerWithBody)
+	router.Post("/update/", s.UpdateMetricHandlerWithBody)
+	router.Post("/update/{type}/{name}/{value}", s.UpdateMetricHandlerWithPathVars)
+	router.Post("/value", s.GetMetricHandlerWithBody)
+	router.Post("/value/", s.GetMetricHandlerWithBody)
+	router.Get("/value/{type}/{name}", s.GetMetricHandlerWithPathVars)
 
 	err = http.ListenAndServe(config.URL, router)
 	if err != nil {

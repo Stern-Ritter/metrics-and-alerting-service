@@ -21,9 +21,9 @@ func (c *MockAgentMemCache) UpdateMonitorMetrics(model *monitors.Monitor) {
 	c.Called(model)
 }
 
-func (c *MockAgentMemCache) UpdateGaugeMetric(metric metrics.GaugeMetric) error {
+func (c *MockAgentMemCache) UpdateGaugeMetric(metric metrics.GaugeMetric) (metrics.GaugeMetric, error) {
 	args := c.Called(metric)
-	return args.Error(0)
+	return args.Get(0).(metrics.GaugeMetric), args.Error(1)
 }
 
 func (c *MockAgentMemCache) ResetMetricValue(metricType, metricName string) error {
@@ -40,7 +40,7 @@ func TestUpdateMetrics(t *testing.T) {
 		mockRandom := utils.NewRandom()
 
 		mockAgentMemCache.On("UpdateMonitorMetrics", &monitor).Return(nil)
-		mockAgentMemCache.On("UpdateGaugeMetric", mock.Anything).Return(nil)
+		mockAgentMemCache.On("UpdateGaugeMetric", mock.Anything).Return(metrics.GaugeMetric{}, nil)
 		UpdateMetrics(&mockAgentMemCache, &monitor, &mockRandom)
 
 		assert.True(t, mockAgentMemCache.AssertNumberOfCalls(t, "UpdateMonitorMetrics", 1), "should update monitor metrics once")

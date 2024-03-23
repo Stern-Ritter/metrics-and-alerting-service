@@ -88,7 +88,7 @@ func TestUpdateGaugeMetric(t *testing.T) {
 				gauges: tt.gaugesInitState,
 			}
 
-			err := metricsStorage.UpdateGaugeMetric(metrics.NewGauge(tt.args.metricName, tt.args.metricValue))
+			_, err := metricsStorage.UpdateGaugeMetric(metrics.NewGauge(tt.args.metricName, tt.args.metricValue))
 			require.NoError(t, err)
 
 			gauges, _ := metricsStorage.GetMetrics()
@@ -148,7 +148,7 @@ func TestUpdateCounterMetric(t *testing.T) {
 				counters: tt.countersInitState,
 			}
 
-			err := metricsStorage.UpdateCounterMetric(metrics.NewCounter(tt.args.metricName, tt.args.metricValue))
+			_, err := metricsStorage.UpdateCounterMetric(metrics.NewCounter(tt.args.metricName, tt.args.metricValue))
 			require.NoError(t, err)
 
 			_, counters := metricsStorage.GetMetrics()
