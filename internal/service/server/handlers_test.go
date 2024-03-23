@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
-	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model"
+	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -182,8 +182,8 @@ func TestGetMetricHandler(t *testing.T) {
 
 func TestGetMetricsHandler(t *testing.T) {
 	type storageReturnValue struct {
-		gauges   map[string]model.GaugeMetric
-		counters map[string]model.CounterMetric
+		gauges   map[string]metrics.GaugeMetric
+		counters map[string]metrics.CounterMetric
 	}
 
 	type want struct {
@@ -203,15 +203,15 @@ func TestGetMetricsHandler(t *testing.T) {
 			method: http.MethodPost,
 			url:    validURL,
 			storageReturnValue: storageReturnValue{
-				gauges: map[string]model.GaugeMetric{
-					"metric1": model.NewGauge("metric1", 1.0),
-					"metric2": model.NewGauge("metric2", 2.0),
-					"metric3": model.NewGauge("metric3", 3.0),
+				gauges: map[string]metrics.GaugeMetric{
+					"metric1": metrics.NewGauge("metric1", 1.0),
+					"metric2": metrics.NewGauge("metric2", 2.0),
+					"metric3": metrics.NewGauge("metric3", 3.0),
 				},
-				counters: map[string]model.CounterMetric{
-					"metric4": model.NewCounter("metric4", 4),
-					"metric5": model.NewCounter("metric5", 5),
-					"metric6": model.NewCounter("metric6", 6),
+				counters: map[string]metrics.CounterMetric{
+					"metric4": metrics.NewCounter("metric4", 4),
+					"metric5": metrics.NewCounter("metric5", 5),
+					"metric6": metrics.NewCounter("metric6", 6),
 				},
 			},
 			want: want{

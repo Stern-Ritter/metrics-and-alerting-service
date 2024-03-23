@@ -12,7 +12,7 @@ package server
 import (
 	reflect "reflect"
 
-	model "github.com/Stern-Ritter/metrics-and-alerting-service/internal/model"
+	metrics "github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -55,11 +55,11 @@ func (mr *MockServerStorageMockRecorder) GetMetricValueByTypeAndName(metricType,
 }
 
 // GetMetrics mocks base method.
-func (m *MockServerStorage) GetMetrics() (map[string]model.GaugeMetric, map[string]model.CounterMetric) {
+func (m *MockServerStorage) GetMetrics() (map[string]metrics.GaugeMetric, map[string]metrics.CounterMetric) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetMetrics")
-	ret0, _ := ret[0].(map[string]model.GaugeMetric)
-	ret1, _ := ret[1].(map[string]model.CounterMetric)
+	ret0, _ := ret[0].(map[string]metrics.GaugeMetric)
+	ret1, _ := ret[1].(map[string]metrics.CounterMetric)
 	return ret0, ret1
 }
 
@@ -84,7 +84,7 @@ func (mr *MockServerStorageMockRecorder) ResetMetricValue(metricType, metricName
 }
 
 // UpdateCounterMetric mocks base method.
-func (m *MockServerStorage) UpdateCounterMetric(metric model.CounterMetric) error {
+func (m *MockServerStorage) UpdateCounterMetric(metric metrics.CounterMetric) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateCounterMetric", metric)
 	ret0, _ := ret[0].(error)
@@ -98,7 +98,7 @@ func (mr *MockServerStorageMockRecorder) UpdateCounterMetric(metric any) *gomock
 }
 
 // UpdateGaugeMetric mocks base method.
-func (m *MockServerStorage) UpdateGaugeMetric(metric model.GaugeMetric) error {
+func (m *MockServerStorage) UpdateGaugeMetric(metric metrics.GaugeMetric) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateGaugeMetric", metric)
 	ret0, _ := ret[0].(error)

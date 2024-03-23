@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
-	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model"
+	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
 	"github.com/go-chi/chi"
 )
 
@@ -55,7 +55,7 @@ func (s *Server) GetMetricsHandler(res http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func getMetricsString(gauges map[string]model.GaugeMetric, counters map[string]model.CounterMetric) string {
+func getMetricsString(gauges map[string]metrics.GaugeMetric, counters map[string]metrics.CounterMetric) string {
 	metricsNames := make([]string, 0)
 	for _, metric := range gauges {
 		metricsNames = append(metricsNames, metric.Name)

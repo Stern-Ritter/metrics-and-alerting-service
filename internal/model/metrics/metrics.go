@@ -1,4 +1,4 @@
-package model
+package metrics
 
 type MetricType string
 

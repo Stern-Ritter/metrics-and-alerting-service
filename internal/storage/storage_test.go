@@ -5,14 +5,14 @@ import (
 	"testing"
 
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
-	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model"
+	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 const (
-	validGaugeMetricType   = string(model.Gauge)
-	validCounterMetricType = string(model.Counter)
+	validGaugeMetricType   = string(metrics.Gauge)
+	validCounterMetricType = string(metrics.Counter)
 	invalidMetricType      = "Invalid"
 
 	defaultMetricName = "metricName"
@@ -47,9 +47,9 @@ func TestUpdateGaugeMetric(t *testing.T) {
 		name string
 
 		args            args
-		gaugesInitState map[string]model.GaugeMetric
+		gaugesInitState map[string]metrics.GaugeMetric
 
-		gaugesUpdatedState map[string]model.GaugeMetric
+		gaugesUpdatedState map[string]metrics.GaugeMetric
 	}{
 		{
 			name: "should correct create metric when update non existing gauge metric",
@@ -58,10 +58,10 @@ func TestUpdateGaugeMetric(t *testing.T) {
 				metricName:  defaultMetricName,
 				metricValue: parsedValidGaugeMetricValue,
 			},
-			gaugesInitState: make(map[string]model.GaugeMetric),
+			gaugesInitState: make(map[string]metrics.GaugeMetric),
 
-			gaugesUpdatedState: map[string]model.GaugeMetric{
-				defaultMetricName: model.NewGauge(defaultMetricName, updatedNonExistingGaugeMetricValue),
+			gaugesUpdatedState: map[string]metrics.GaugeMetric{
+				defaultMetricName: metrics.NewGauge(defaultMetricName, updatedNonExistingGaugeMetricValue),
 			},
 		},
 
@@ -72,12 +72,12 @@ func TestUpdateGaugeMetric(t *testing.T) {
 				metricName:  defaultMetricName,
 				metricValue: parsedValidGaugeMetricValue,
 			},
-			gaugesInitState: map[string]model.GaugeMetric{
-				defaultMetricName: model.NewGauge(defaultMetricName, initGaugeMetricValue),
+			gaugesInitState: map[string]metrics.GaugeMetric{
+				defaultMetricName: metrics.NewGauge(defaultMetricName, initGaugeMetricValue),
 			},
 
-			gaugesUpdatedState: map[string]model.GaugeMetric{
-				defaultMetricName: model.NewGauge(defaultMetricName, updatedExistingGaugeMetricValue),
+			gaugesUpdatedState: map[string]metrics.GaugeMetric{
+				defaultMetricName: metrics.NewGauge(defaultMetricName, updatedExistingGaugeMetricValue),
 			},
 		},
 	}
@@ -88,7 +88,7 @@ func TestUpdateGaugeMetric(t *testing.T) {
 				gauges: tt.gaugesInitState,
 			}
 
-			err := metricsStorage.UpdateGaugeMetric(model.NewGauge(tt.args.metricName, tt.args.metricValue))
+			err := metricsStorage.UpdateGaugeMetric(metrics.NewGauge(tt.args.metricName, tt.args.metricValue))
 			require.NoError(t, err)
 
 			gauges, _ := metricsStorage.GetMetrics()
@@ -107,9 +107,9 @@ func TestUpdateCounterMetric(t *testing.T) {
 		name string
 
 		args              args
-		countersInitState map[string]model.CounterMetric
+		countersInitState map[string]metrics.CounterMetric
 
-		countersUpdatedState map[string]model.CounterMetric
+		countersUpdatedState map[string]metrics.CounterMetric
 	}{
 		{
 			name: "should correct create metric when update non existing counter metric",
@@ -118,10 +118,10 @@ func TestUpdateCounterMetric(t *testing.T) {
 				metricName:  defaultMetricName,
 				metricValue: parsedValidCounterMetricValue,
 			},
-			countersInitState: make(map[string]model.CounterMetric),
+			countersInitState: make(map[string]metrics.CounterMetric),
 
-			countersUpdatedState: map[string]model.CounterMetric{
-				defaultMetricName: model.NewCounter(defaultMetricName, updatedNonExistingCounterMetricValue),
+			countersUpdatedState: map[string]metrics.CounterMetric{
+				defaultMetricName: metrics.NewCounter(defaultMetricName, updatedNonExistingCounterMetricValue),
 			},
 		},
 
@@ -132,12 +132,12 @@ func TestUpdateCounterMetric(t *testing.T) {
 				metricName:  defaultMetricName,
 				metricValue: parsedValidCounterMetricValue,
 			},
-			countersInitState: map[string]model.CounterMetric{
-				defaultMetricName: model.NewCounter(defaultMetricName, initCounterMetricValue),
+			countersInitState: map[string]metrics.CounterMetric{
+				defaultMetricName: metrics.NewCounter(defaultMetricName, initCounterMetricValue),
 			},
 
-			countersUpdatedState: map[string]model.CounterMetric{
-				defaultMetricName: model.NewCounter(defaultMetricName, updatedExistingCounterMetricValue),
+			countersUpdatedState: map[string]metrics.CounterMetric{
+				defaultMetricName: metrics.NewCounter(defaultMetricName, updatedExistingCounterMetricValue),
 			},
 		},
 	}
@@ -148,7 +148,7 @@ func TestUpdateCounterMetric(t *testing.T) {
 				counters: tt.countersInitState,
 			}
 
-			err := metricsStorage.UpdateCounterMetric(model.NewCounter(tt.args.metricName, tt.args.metricValue))
+			err := metricsStorage.UpdateCounterMetric(metrics.NewCounter(tt.args.metricName, tt.args.metricValue))
 			require.NoError(t, err)
 
 			_, counters := metricsStorage.GetMetrics()
@@ -168,11 +168,11 @@ func TestUpdateMetric(t *testing.T) {
 		name string
 
 		args              args
-		gaugesInitState   map[string]model.GaugeMetric
-		countersInitState map[string]model.CounterMetric
+		gaugesInitState   map[string]metrics.GaugeMetric
+		countersInitState map[string]metrics.CounterMetric
 
-		gaugesUpdatedState   map[string]model.GaugeMetric
-		countersUpdatedState map[string]model.CounterMetric
+		gaugesUpdatedState   map[string]metrics.GaugeMetric
+		countersUpdatedState map[string]metrics.CounterMetric
 		storageError         error
 	}{
 		{
@@ -183,11 +183,11 @@ func TestUpdateMetric(t *testing.T) {
 				metricName:  defaultMetricName,
 				metricValue: validCounterMetricValue,
 			},
-			gaugesInitState:   make(map[string]model.GaugeMetric),
-			countersInitState: make(map[string]model.CounterMetric),
+			gaugesInitState:   make(map[string]metrics.GaugeMetric),
+			countersInitState: make(map[string]metrics.CounterMetric),
 
-			gaugesUpdatedState:   make(map[string]model.GaugeMetric),
-			countersUpdatedState: make(map[string]model.CounterMetric),
+			gaugesUpdatedState:   make(map[string]metrics.GaugeMetric),
+			countersUpdatedState: make(map[string]metrics.CounterMetric),
 			storageError:         errors.InvalidMetricType{},
 		},
 		{
@@ -198,11 +198,11 @@ func TestUpdateMetric(t *testing.T) {
 				metricName:  defaultMetricName,
 				metricValue: invalidGaugeMetricValue,
 			},
-			gaugesInitState:   make(map[string]model.GaugeMetric),
-			countersInitState: make(map[string]model.CounterMetric),
+			gaugesInitState:   make(map[string]metrics.GaugeMetric),
+			countersInitState: make(map[string]metrics.CounterMetric),
 
-			gaugesUpdatedState:   make(map[string]model.GaugeMetric),
-			countersUpdatedState: make(map[string]model.CounterMetric),
+			gaugesUpdatedState:   make(map[string]metrics.GaugeMetric),
+			countersUpdatedState: make(map[string]metrics.CounterMetric),
 			storageError:         errors.InvalidMetricValue{},
 		},
 
@@ -214,11 +214,11 @@ func TestUpdateMetric(t *testing.T) {
 				metricValue: invalidCounterMetricValue,
 			},
 
-			gaugesInitState:   make(map[string]model.GaugeMetric),
-			countersInitState: make(map[string]model.CounterMetric),
+			gaugesInitState:   make(map[string]metrics.GaugeMetric),
+			countersInitState: make(map[string]metrics.CounterMetric),
 
-			gaugesUpdatedState:   make(map[string]model.GaugeMetric),
-			countersUpdatedState: make(map[string]model.CounterMetric),
+			gaugesUpdatedState:   make(map[string]metrics.GaugeMetric),
+			countersUpdatedState: make(map[string]metrics.CounterMetric),
 			storageError:         errors.InvalidMetricValue{},
 		},
 
@@ -230,13 +230,13 @@ func TestUpdateMetric(t *testing.T) {
 				metricName:  defaultMetricName,
 				metricValue: validGaugeMetricValue,
 			},
-			gaugesInitState:   make(map[string]model.GaugeMetric),
-			countersInitState: make(map[string]model.CounterMetric),
+			gaugesInitState:   make(map[string]metrics.GaugeMetric),
+			countersInitState: make(map[string]metrics.CounterMetric),
 
-			gaugesUpdatedState: map[string]model.GaugeMetric{
-				defaultMetricName: model.NewGauge(defaultMetricName, updatedNonExistingGaugeMetricValue),
+			gaugesUpdatedState: map[string]metrics.GaugeMetric{
+				defaultMetricName: metrics.NewGauge(defaultMetricName, updatedNonExistingGaugeMetricValue),
 			},
-			countersUpdatedState: make(map[string]model.CounterMetric),
+			countersUpdatedState: make(map[string]metrics.CounterMetric),
 			storageError:         nil,
 		},
 
@@ -248,15 +248,15 @@ func TestUpdateMetric(t *testing.T) {
 				metricName:  defaultMetricName,
 				metricValue: validGaugeMetricValue,
 			},
-			gaugesInitState: map[string]model.GaugeMetric{
-				defaultMetricName: model.NewGauge(defaultMetricName, initGaugeMetricValue),
+			gaugesInitState: map[string]metrics.GaugeMetric{
+				defaultMetricName: metrics.NewGauge(defaultMetricName, initGaugeMetricValue),
 			},
-			countersInitState: make(map[string]model.CounterMetric),
+			countersInitState: make(map[string]metrics.CounterMetric),
 
-			gaugesUpdatedState: map[string]model.GaugeMetric{
-				defaultMetricName: model.NewGauge(defaultMetricName, updatedExistingGaugeMetricValue),
+			gaugesUpdatedState: map[string]metrics.GaugeMetric{
+				defaultMetricName: metrics.NewGauge(defaultMetricName, updatedExistingGaugeMetricValue),
 			},
-			countersUpdatedState: make(map[string]model.CounterMetric),
+			countersUpdatedState: make(map[string]metrics.CounterMetric),
 			storageError:         nil,
 		},
 
@@ -268,12 +268,12 @@ func TestUpdateMetric(t *testing.T) {
 				metricName:  defaultMetricName,
 				metricValue: validCounterMetricValue,
 			},
-			gaugesInitState:   make(map[string]model.GaugeMetric),
-			countersInitState: make(map[string]model.CounterMetric),
+			gaugesInitState:   make(map[string]metrics.GaugeMetric),
+			countersInitState: make(map[string]metrics.CounterMetric),
 
-			gaugesUpdatedState: make(map[string]model.GaugeMetric),
-			countersUpdatedState: map[string]model.CounterMetric{
-				defaultMetricName: model.NewCounter(defaultMetricName, updatedNonExistingCounterMetricValue),
+			gaugesUpdatedState: make(map[string]metrics.GaugeMetric),
+			countersUpdatedState: map[string]metrics.CounterMetric{
+				defaultMetricName: metrics.NewCounter(defaultMetricName, updatedNonExistingCounterMetricValue),
 			},
 			storageError: nil,
 		},
@@ -286,14 +286,14 @@ func TestUpdateMetric(t *testing.T) {
 				metricName:  defaultMetricName,
 				metricValue: validCounterMetricValue,
 			},
-			gaugesInitState: make(map[string]model.GaugeMetric),
-			countersInitState: map[string]model.CounterMetric{
-				defaultMetricName: model.NewCounter(defaultMetricName, initCounterMetricValue),
+			gaugesInitState: make(map[string]metrics.GaugeMetric),
+			countersInitState: map[string]metrics.CounterMetric{
+				defaultMetricName: metrics.NewCounter(defaultMetricName, initCounterMetricValue),
 			},
 
-			gaugesUpdatedState: make(map[string]model.GaugeMetric),
-			countersUpdatedState: map[string]model.CounterMetric{
-				defaultMetricName: model.NewCounter(defaultMetricName, updatedExistingCounterMetricValue),
+			gaugesUpdatedState: make(map[string]metrics.GaugeMetric),
+			countersUpdatedState: map[string]metrics.CounterMetric{
+				defaultMetricName: metrics.NewCounter(defaultMetricName, updatedExistingCounterMetricValue),
 			},
 			storageError: nil,
 		},
@@ -331,11 +331,11 @@ func TestResetMetricValue(t *testing.T) {
 		name string
 
 		args              args
-		gaugesInitState   map[string]model.GaugeMetric
-		countersInitState map[string]model.CounterMetric
+		gaugesInitState   map[string]metrics.GaugeMetric
+		countersInitState map[string]metrics.CounterMetric
 
-		gaugesUpdatedState   map[string]model.GaugeMetric
-		countersUpdatedState map[string]model.CounterMetric
+		gaugesUpdatedState   map[string]metrics.GaugeMetric
+		countersUpdatedState map[string]metrics.CounterMetric
 		storageError         error
 	}{
 		{
@@ -345,11 +345,11 @@ func TestResetMetricValue(t *testing.T) {
 				metricType: invalidMetricType,
 				metricName: defaultMetricName,
 			},
-			gaugesInitState:   make(map[string]model.GaugeMetric),
-			countersInitState: make(map[string]model.CounterMetric),
+			gaugesInitState:   make(map[string]metrics.GaugeMetric),
+			countersInitState: make(map[string]metrics.CounterMetric),
 
-			gaugesUpdatedState:   make(map[string]model.GaugeMetric),
-			countersUpdatedState: make(map[string]model.CounterMetric),
+			gaugesUpdatedState:   make(map[string]metrics.GaugeMetric),
+			countersUpdatedState: make(map[string]metrics.CounterMetric),
 			storageError:         errors.InvalidMetricType{},
 		},
 		{
@@ -359,11 +359,11 @@ func TestResetMetricValue(t *testing.T) {
 				metricType: validGaugeMetricType,
 				metricName: defaultMetricName,
 			},
-			gaugesInitState:   make(map[string]model.GaugeMetric),
-			countersInitState: make(map[string]model.CounterMetric),
+			gaugesInitState:   make(map[string]metrics.GaugeMetric),
+			countersInitState: make(map[string]metrics.CounterMetric),
 
-			gaugesUpdatedState:   make(map[string]model.GaugeMetric),
-			countersUpdatedState: make(map[string]model.CounterMetric),
+			gaugesUpdatedState:   make(map[string]metrics.GaugeMetric),
+			countersUpdatedState: make(map[string]metrics.CounterMetric),
 			storageError:         errors.InvalidMetricName{},
 		},
 
@@ -374,15 +374,15 @@ func TestResetMetricValue(t *testing.T) {
 				metricType: validGaugeMetricType,
 				metricName: defaultMetricName,
 			},
-			gaugesInitState: map[string]model.GaugeMetric{
-				defaultMetricName: model.NewGauge(defaultMetricName, initGaugeMetricValue),
+			gaugesInitState: map[string]metrics.GaugeMetric{
+				defaultMetricName: metrics.NewGauge(defaultMetricName, initGaugeMetricValue),
 			},
-			countersInitState: make(map[string]model.CounterMetric),
+			countersInitState: make(map[string]metrics.CounterMetric),
 
-			gaugesUpdatedState: map[string]model.GaugeMetric{
-				defaultMetricName: model.NewGauge(defaultMetricName, resetedGaugeMetricValue),
+			gaugesUpdatedState: map[string]metrics.GaugeMetric{
+				defaultMetricName: metrics.NewGauge(defaultMetricName, resetedGaugeMetricValue),
 			},
-			countersUpdatedState: make(map[string]model.CounterMetric),
+			countersUpdatedState: make(map[string]metrics.CounterMetric),
 			storageError:         nil,
 		},
 
@@ -393,11 +393,11 @@ func TestResetMetricValue(t *testing.T) {
 				metricType: validCounterMetricType,
 				metricName: defaultMetricName,
 			},
-			gaugesInitState:   make(map[string]model.GaugeMetric),
-			countersInitState: make(map[string]model.CounterMetric),
+			gaugesInitState:   make(map[string]metrics.GaugeMetric),
+			countersInitState: make(map[string]metrics.CounterMetric),
 
-			gaugesUpdatedState:   make(map[string]model.GaugeMetric),
-			countersUpdatedState: make(map[string]model.CounterMetric),
+			gaugesUpdatedState:   make(map[string]metrics.GaugeMetric),
+			countersUpdatedState: make(map[string]metrics.CounterMetric),
 			storageError:         errors.InvalidMetricName{},
 		},
 
@@ -408,14 +408,14 @@ func TestResetMetricValue(t *testing.T) {
 				metricType: validCounterMetricType,
 				metricName: defaultMetricName,
 			},
-			gaugesInitState: make(map[string]model.GaugeMetric),
-			countersInitState: map[string]model.CounterMetric{
-				defaultMetricName: model.NewCounter(defaultMetricName, initCounterMetricValue),
+			gaugesInitState: make(map[string]metrics.GaugeMetric),
+			countersInitState: map[string]metrics.CounterMetric{
+				defaultMetricName: metrics.NewCounter(defaultMetricName, initCounterMetricValue),
 			},
 
-			gaugesUpdatedState: make(map[string]model.GaugeMetric),
-			countersUpdatedState: map[string]model.CounterMetric{
-				defaultMetricName: model.NewCounter(defaultMetricName, resetedCounterMetricValue),
+			gaugesUpdatedState: make(map[string]metrics.GaugeMetric),
+			countersUpdatedState: map[string]metrics.CounterMetric{
+				defaultMetricName: metrics.NewCounter(defaultMetricName, resetedCounterMetricValue),
 			},
 			storageError: nil,
 		},
@@ -458,8 +458,8 @@ func TestGetMetricValueByTypeAndName(t *testing.T) {
 		name string
 
 		args              args
-		gaugesInitState   map[string]model.GaugeMetric
-		countersInitState map[string]model.CounterMetric
+		gaugesInitState   map[string]metrics.GaugeMetric
+		countersInitState map[string]metrics.CounterMetric
 
 		want want
 	}{
@@ -470,8 +470,8 @@ func TestGetMetricValueByTypeAndName(t *testing.T) {
 				metricType: invalidMetricType,
 				metricName: defaultMetricName,
 			},
-			gaugesInitState:   make(map[string]model.GaugeMetric),
-			countersInitState: make(map[string]model.CounterMetric),
+			gaugesInitState:   make(map[string]metrics.GaugeMetric),
+			countersInitState: make(map[string]metrics.CounterMetric),
 
 			want: want{
 				value: "",
@@ -485,8 +485,8 @@ func TestGetMetricValueByTypeAndName(t *testing.T) {
 				metricType: validGaugeMetricType,
 				metricName: defaultMetricName,
 			},
-			gaugesInitState:   make(map[string]model.GaugeMetric),
-			countersInitState: make(map[string]model.CounterMetric),
+			gaugesInitState:   make(map[string]metrics.GaugeMetric),
+			countersInitState: make(map[string]metrics.CounterMetric),
 
 			want: want{
 				value: "",
@@ -501,10 +501,10 @@ func TestGetMetricValueByTypeAndName(t *testing.T) {
 				metricType: validGaugeMetricType,
 				metricName: defaultMetricName,
 			},
-			gaugesInitState: map[string]model.GaugeMetric{
-				defaultMetricName: model.NewGauge(defaultMetricName, initGaugeMetricValue),
+			gaugesInitState: map[string]metrics.GaugeMetric{
+				defaultMetricName: metrics.NewGauge(defaultMetricName, initGaugeMetricValue),
 			},
-			countersInitState: make(map[string]model.CounterMetric),
+			countersInitState: make(map[string]metrics.CounterMetric),
 
 			want: want{
 				value: parsedInitGaugeMetricValue,
@@ -519,8 +519,8 @@ func TestGetMetricValueByTypeAndName(t *testing.T) {
 				metricType: validCounterMetricType,
 				metricName: defaultMetricName,
 			},
-			gaugesInitState:   make(map[string]model.GaugeMetric),
-			countersInitState: make(map[string]model.CounterMetric),
+			gaugesInitState:   make(map[string]metrics.GaugeMetric),
+			countersInitState: make(map[string]metrics.CounterMetric),
 
 			want: want{
 				value: "",
@@ -535,9 +535,9 @@ func TestGetMetricValueByTypeAndName(t *testing.T) {
 				metricType: validCounterMetricType,
 				metricName: defaultMetricName,
 			},
-			gaugesInitState: make(map[string]model.GaugeMetric),
-			countersInitState: map[string]model.CounterMetric{
-				defaultMetricName: model.NewCounter(defaultMetricName, initCounterMetricValue),
+			gaugesInitState: make(map[string]metrics.GaugeMetric),
+			countersInitState: map[string]metrics.CounterMetric{
+				defaultMetricName: metrics.NewCounter(defaultMetricName, initCounterMetricValue),
 			},
 
 			want: want{

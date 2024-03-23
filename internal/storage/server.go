@@ -1,7 +1,7 @@
 package storage
 
 import (
-	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model"
+	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
 )
 
 type ServerStorage interface {
@@ -15,8 +15,8 @@ type ServerMemStorage struct {
 func NewServerMemStorage() ServerMemStorage {
 	return ServerMemStorage{
 		MemStorage: MemStorage{
-			gauges:   make(map[string]model.GaugeMetric),
-			counters: make(map[string]model.CounterMetric),
+			gauges:   make(map[string]metrics.GaugeMetric),
+			counters: make(map[string]metrics.CounterMetric),
 		},
 	}
 }
