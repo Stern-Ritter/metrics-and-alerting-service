@@ -39,6 +39,13 @@ type Monitor struct {
 func (m *Monitor) Update(ms *runtime.MemStats) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	m.Alloc = float64(ms.Alloc)
+	m.BuckHashSys = float64(ms.BuckHashSys)
+	m.Frees = float64(ms.Frees)
+	m.GCCPUFraction = float64(ms.GCCPUFraction)
+	m.GCSys = float64(ms.GCSys)
+	m.HeapAlloc = float64(ms.HeapAlloc)
+	m.HeapIdle = float64(ms.HeapIdle)
 	m.HeapInuse = float64(ms.HeapInuse)
 	m.HeapObjects = float64(ms.HeapObjects)
 	m.HeapReleased = float64(ms.HeapReleased)
