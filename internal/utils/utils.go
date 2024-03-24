@@ -27,10 +27,12 @@ func (r *Random) Float(min, max float64) (float64, error) {
 	return res, nil
 }
 
-func Contains(s []string, v string) bool {
+func Contains(s []string, v ...string) bool {
 	for _, e := range s {
-		if strings.EqualFold(e, v) {
-			return true
+		for _, f := range v {
+			if strings.EqualFold(e, f) {
+				return true
+			}
 		}
 	}
 	return false

@@ -132,11 +132,11 @@ func (s *Server) GetMetricsHandler(res http.ResponseWriter, req *http.Request) {
 	body := getMetricsString(gauges, counters)
 
 	res.Header().Set("Content-type", "text/html")
-	res.WriteHeader(http.StatusOK)
 	_, err := io.WriteString(res, body)
 	if err != nil {
 		http.Error(res, err.Error(), http.StatusInternalServerError)
 	}
+	res.WriteHeader(http.StatusOK)
 }
 
 func getMetricsString(gauges map[string]metrics.GaugeMetric, counters map[string]metrics.CounterMetric) string {

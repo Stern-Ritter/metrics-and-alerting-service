@@ -3,6 +3,7 @@ package server
 import (
 	"net/http"
 
+	compress "github.com/Stern-Ritter/metrics-and-alerting-service/internal/compress/server"
 	config "github.com/Stern-Ritter/metrics-and-alerting-service/internal/config/server"
 	logger "github.com/Stern-Ritter/metrics-and-alerting-service/internal/logger/server"
 	service "github.com/Stern-Ritter/metrics-and-alerting-service/internal/service/server"
@@ -25,6 +26,7 @@ func Run(s *service.Server) error {
 
 	router := chi.NewRouter()
 	router.Use(logger.RequestLogger)
+	router.Use(compress.GzipMiddleware)
 	router.Get("/", s.GetMetricsHandler)
 	router.Post("/update", s.UpdateMetricHandlerWithBody)
 	router.Post("/update/", s.UpdateMetricHandlerWithBody)
