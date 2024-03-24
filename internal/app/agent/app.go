@@ -15,7 +15,7 @@ const (
 
 func Run(a *service.Agent) error {
 	config, err := getConfig(config.AgentConfig{
-		SendMetricsEndPoint: "/update/{type}/{name}/{value}",
+		SendMetricsEndPoint: "/update",
 	})
 	if err != nil {
 		return err
