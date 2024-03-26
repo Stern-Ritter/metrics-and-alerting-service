@@ -8,50 +8,50 @@ const (
 )
 
 type Metric struct {
-	Name string
-	Type MetricType
+	Name string     `json:"name"`
+	Type MetricType `json:"type"`
 }
 
 type GaugeMetric struct {
-	Metric
-	value float64
+	Metric `json:"metric"`
+	Value  float64 `json:"value"`
 }
 
 func (g *GaugeMetric) SetValue(value float64) {
-	g.value = value
+	g.Value = value
 }
 
 func (g *GaugeMetric) GetValue() float64 {
-	return g.value
+	return g.Value
 }
 
 func (g *GaugeMetric) ClearValue() {
-	g.value = 0
+	g.Value = 0
 }
 
 func NewGauge(name string, value float64) GaugeMetric {
-	return GaugeMetric{Metric: Metric{Name: name, Type: Gauge}, value: value}
+	return GaugeMetric{Metric: Metric{Name: name, Type: Gauge}, Value: value}
 }
 
 type CounterMetric struct {
-	Metric
-	value int64
+	Metric `json:"metric"`
+	Value  int64 `json:"value"`
 }
 
 func (c *CounterMetric) SetValue(value int64) {
-	c.value += value
+	c.Value += value
 }
 
 func (c *CounterMetric) GetValue() int64 {
-	return c.value
+	return c.Value
 }
 
 func (c *CounterMetric) ClearValue() {
-	c.value = 0
+	c.Value = 0
 }
 
 func NewCounter(name string, value int64) CounterMetric {
-	return CounterMetric{Metric: Metric{Name: name, Type: Counter}, value: value}
+	return CounterMetric{Metric: Metric{Name: name, Type: Counter}, Value: value}
 }
 
 var SupportedGaugeMetrics = map[string]GaugeMetric{

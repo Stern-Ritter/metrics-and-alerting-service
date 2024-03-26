@@ -2,6 +2,7 @@ package server
 
 import (
 	"net/http"
+	"strings"
 
 	compress "github.com/Stern-Ritter/metrics-and-alerting-service/internal/compress/server"
 	config "github.com/Stern-Ritter/metrics-and-alerting-service/internal/config/server"
@@ -24,18 +25,46 @@ func Run(s *service.Server) error {
 		return err
 	}
 
-	router := chi.NewRouter()
-	router.Use(logger.RequestLogger)
-	router.Use(compress.GzipMiddleware)
-	router.Get("/", s.GetMetricsHandler)
-	router.Post("/update", s.UpdateMetricHandlerWithBody)
-	router.Post("/update/", s.UpdateMetricHandlerWithBody)
-	router.Post("/update/{type}/{name}/{value}", s.UpdateMetricHandlerWithPathVars)
-	router.Post("/value", s.GetMetricHandlerWithBody)
-	router.Post("/value/", s.GetMetricHandlerWithBody)
-	router.Get("/value/{type}/{name}", s.GetMetricHandlerWithPathVars)
+	isFileStorageEnabled := len(strings.TrimSpace(config.StorageFilePath)) != 0
+	if isFileStorageEnabled {
+		err = s.AddFileStorage(config.StorageFilePath)
+		if err != nil {
+			logger.Log.Fatal(err.Error(), zap.String("event", "add file storage"))
+			return err
+		}
+		logger.Log.Info("Success", zap.String("event", "add file storage"))
 
-	err = http.ListenAndServe(config.URL, router)
+		if config.Restore {
+			if err := s.FileStorage.Load(); err != nil {
+				logger.Log.Fatal(err.Error(), zap.String("event", "restore data from file storage"))
+				return err
+			}
+			logger.Log.Info("Success", zap.String("event", "restore from storage"))
+		}
+
+		s.FileStorage.SetSaveInterval(config.StoreInterval)
+		defer s.FileStorage.Close()
+	}
+
+	r := chi.NewRouter()
+	r.Use(logger.RequestLogger)
+	r.Use(compress.GzipMiddleware)
+	r.Get("/", s.GetMetricsHandler)
+
+	r.Route("/update", func(r chi.Router) {
+		if isFileStorageEnabled {
+			r.Use(s.FileStorage.FileStorageMiddleware)
+		}
+		r.Post("/", s.UpdateMetricHandlerWithBody)
+		r.Post("/{type}/{name}/{value}", s.UpdateMetricHandlerWithPathVars)
+	})
+
+	r.Route("/value", func(r chi.Router) {
+		r.Post("/", s.GetMetricHandlerWithBody)
+		r.Get("/{type}/{name}", s.GetMetricHandlerWithPathVars)
+	})
+
+	err = http.ListenAndServe(config.URL, r)
 	if err != nil {
 		logger.Log.Fatal(err.Error(), zap.String("event", "start server"))
 	}

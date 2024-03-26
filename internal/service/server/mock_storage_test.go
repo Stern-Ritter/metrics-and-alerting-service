@@ -113,6 +113,30 @@ func (mr *MockServerStorageMockRecorder) ResetMetricValue(metricType, metricName
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResetMetricValue", reflect.TypeOf((*MockServerStorage)(nil).ResetMetricValue), metricType, metricName)
 }
 
+// SetCounterMetrics mocks base method.
+func (m *MockServerStorage) SetCounterMetrics(counters map[string]metrics.CounterMetric) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "SetCounterMetrics", counters)
+}
+
+// SetCounterMetrics indicates an expected call of SetCounterMetrics.
+func (mr *MockServerStorageMockRecorder) SetCounterMetrics(counters any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetCounterMetrics", reflect.TypeOf((*MockServerStorage)(nil).SetCounterMetrics), counters)
+}
+
+// SetGaugeMetircs mocks base method.
+func (m *MockServerStorage) SetGaugeMetircs(gauges map[string]metrics.GaugeMetric) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "SetGaugeMetircs", gauges)
+}
+
+// SetGaugeMetircs indicates an expected call of SetGaugeMetircs.
+func (mr *MockServerStorageMockRecorder) SetGaugeMetircs(gauges any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetGaugeMetircs", reflect.TypeOf((*MockServerStorage)(nil).SetGaugeMetircs), gauges)
+}
+
 // UpdateCounterMetric mocks base method.
 func (m *MockServerStorage) UpdateCounterMetric(metric metrics.CounterMetric) (metrics.CounterMetric, error) {
 	m.ctrl.T.Helper()

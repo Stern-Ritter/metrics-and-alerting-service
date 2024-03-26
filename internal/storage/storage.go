@@ -19,6 +19,8 @@ type Storage interface {
 	GetGaugeMetric(metricName string) (metrics.GaugeMetric, error)
 	GetCounterMetric(metricName string) (metrics.CounterMetric, error)
 	GetMetrics() (map[string]metrics.GaugeMetric, map[string]metrics.CounterMetric)
+	SetGaugeMetircs(gauges map[string]metrics.GaugeMetric)
+	SetCounterMetrics(counters map[string]metrics.CounterMetric)
 }
 
 type MemStorage struct {
@@ -233,4 +235,16 @@ func (s *MemStorage) GetCounterMetric(metricName string) (metrics.CounterMetric,
 	}
 
 	return metric, nil
+}
+
+func (s *MemStorage) SetGaugeMetircs(gauges map[string]metrics.GaugeMetric) {
+	s.gaugesMu.Lock()
+	defer s.gaugesMu.Unlock()
+	s.gauges = gauges
+}
+
+func (s *MemStorage) SetCounterMetrics(counters map[string]metrics.CounterMetric) {
+	s.countersMu.Lock()
+	defer s.countersMu.Unlock()
+	s.counters = counters
 }

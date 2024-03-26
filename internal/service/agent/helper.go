@@ -14,21 +14,6 @@ import (
 
 var compressedContentTypes = []string{"application/json", "text/html"}
 
-func SetInterval(ctx context.Context, wg *sync.WaitGroup, task func(), interval time.Duration) {
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				wg.Done()
-				return
-			default:
-				task()
-				time.Sleep(interval)
-			}
-		}
-	}()
-}
-
 func sendPostRequest(client *resty.Client, url, endpoint, contentType string, body []byte) (*resty.Response, error) {
 	headers := make(map[string][]string)
 	headers["Content-Type"] = []string{contentType}
@@ -58,4 +43,19 @@ func compress(data []byte) ([]byte, error) {
 	_, err := w.Write(data)
 	w.Close()
 	return b.Bytes(), err
+}
+
+func SetInterval(ctx context.Context, wg *sync.WaitGroup, task func(), interval time.Duration) {
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				wg.Done()
+				return
+			default:
+				task()
+				time.Sleep(interval)
+			}
+		}
+	}()
 }
