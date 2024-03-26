@@ -80,13 +80,16 @@ func (s *FileStorage) Save() error {
 	}
 
 	err = s.encoder.Encode(s.data)
-	logger.Log.Info("Success sync save to file storage", zap.String("event", "sync save to file storage"))
 	return err
 }
 
 func (s *FileStorage) Close() error {
-	s.Save()
-	err := s.file.Close()
+	err := s.Save()
+	if err != nil {
+		logger.Log.Error(err.Error(), zap.String("event", "save to file storage when closing file storage"))
+		return err
+	}
+	err = s.file.Close()
 	logger.Log.Info("Close file storage", zap.String("event", "close file storage"))
 	return err
 }
@@ -116,7 +119,12 @@ func (s *FileStorage) FileStorageMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		next.ServeHTTP(w, r)
 		if s.synchronous {
-			s.Save()
+			err := s.Save()
+			if err != nil {
+				logger.Log.Error(err.Error(), zap.String("event", "sync save to file storage"))
+			} else {
+				logger.Log.Info("Success sync save to file storage", zap.String("event", "sync save to file storage"))
+			}
 		}
 	})
 }
