@@ -565,3 +565,89 @@ func TestGetMetricValueByTypeAndName(t *testing.T) {
 		})
 	}
 }
+
+func TestGetGaugeMetric(t *testing.T) {
+	testCases := []struct {
+		name            string
+		gaugesInitState map[string]metrics.GaugeMetric
+		metricName      string
+		wantError       bool
+	}{
+		{
+			name: "should correct return gauge metric when get existing gauge metric",
+			gaugesInitState: map[string]metrics.GaugeMetric{
+				"first": metrics.NewGauge("first", 64),
+			},
+			metricName: "first",
+			wantError:  false,
+		},
+		{
+			name: "should return error when get non existing gauge metric",
+			gaugesInitState: map[string]metrics.GaugeMetric{
+				"first": metrics.NewGauge("first", 64),
+			},
+			metricName: "second",
+			wantError:  true,
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			metricsStorage := MemStorage{
+				gauges: tt.gaugesInitState,
+			}
+
+			metric, err := metricsStorage.GetGaugeMetric(tt.metricName)
+			if tt.wantError {
+				assert.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.metricName, metric.Name)
+				assert.Equal(t, metrics.Gauge, metric.Type)
+			}
+		})
+	}
+}
+
+func TestGetCounterMetric(t *testing.T) {
+	testCases := []struct {
+		name              string
+		countersInitState map[string]metrics.CounterMetric
+		metricName        string
+		wantError         bool
+	}{
+		{
+			name: "should correct return gauge metric when get existing gauge metric",
+			countersInitState: map[string]metrics.CounterMetric{
+				"first": metrics.NewCounter("first", 64),
+			},
+			metricName: "first",
+			wantError:  false,
+		},
+		{
+			name: "should return error when get non existing gauge metric",
+			countersInitState: map[string]metrics.CounterMetric{
+				"first": metrics.NewCounter("first", 64),
+			},
+			metricName: "second",
+			wantError:  true,
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			metricsStorage := MemStorage{
+				counters: tt.countersInitState,
+			}
+
+			metric, err := metricsStorage.GetCounterMetric(tt.metricName)
+			if tt.wantError {
+				assert.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.metricName, metric.Name)
+				assert.Equal(t, metrics.Counter, metric.Type)
+			}
+		})
+	}
+}

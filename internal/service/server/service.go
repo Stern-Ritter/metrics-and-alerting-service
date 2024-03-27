@@ -7,7 +7,7 @@ import (
 
 type Server struct {
 	storage     storage.ServerStorage
-	FileStorage *file.FileStorage
+	FileStorage file.FileStorage
 }
 
 func NewServer(storage storage.ServerStorage) *Server {
@@ -15,7 +15,7 @@ func NewServer(storage storage.ServerStorage) *Server {
 }
 
 func (s *Server) AddFileStorage(fname string) error {
-	fileStorage, err := file.NewFileStorage(fname, s.storage)
+	fileStorage, err := file.NewServerFileStorage(fname, s.storage)
 	if err != nil {
 		return err
 	}

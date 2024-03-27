@@ -14,12 +14,20 @@ import (
 	"go.uber.org/zap"
 )
 
+type FileStorage interface {
+	Load() error
+	Save() error
+	Close() error
+	SetSaveInterval(interval int)
+	FileStorageMiddleware(next http.Handler) http.Handler
+}
+
 type Metrics struct {
 	Gauges   map[string]metrics.GaugeMetric   `json:"gauges"`
 	Counters map[string]metrics.CounterMetric `json:"counters"`
 }
 
-type FileStorage struct {
+type ServerFileStorage struct {
 	file *os.File
 
 	encoder *json.Encoder
@@ -31,13 +39,13 @@ type FileStorage struct {
 	storage storage.ServerStorage
 }
 
-func NewFileStorage(fname string, storage storage.ServerStorage) (*FileStorage, error) {
+func NewServerFileStorage(fname string, storage storage.ServerStorage) (*ServerFileStorage, error) {
 	file, err := os.OpenFile(fname, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		return nil, err
 	}
 
-	return &FileStorage{
+	return &ServerFileStorage{
 		file:        file,
 		encoder:     json.NewEncoder(file),
 		decoder:     json.NewDecoder(file),
@@ -50,7 +58,7 @@ func NewFileStorage(fname string, storage storage.ServerStorage) (*FileStorage, 
 	}, nil
 }
 
-func (s *FileStorage) Load() error {
+func (s *ServerFileStorage) Load() error {
 	err := s.decoder.Decode(&s.data)
 	if err != nil {
 		if errors.Is(err, io.EOF) {
@@ -69,7 +77,7 @@ func (s *FileStorage) Load() error {
 	return nil
 }
 
-func (s *FileStorage) Save() error {
+func (s *ServerFileStorage) Save() error {
 	gauges, counters := s.storage.GetMetrics()
 	s.data.Gauges = gauges
 	s.data.Counters = counters
@@ -83,7 +91,7 @@ func (s *FileStorage) Save() error {
 	return err
 }
 
-func (s *FileStorage) Close() error {
+func (s *ServerFileStorage) Close() error {
 	err := s.Save()
 	if err != nil {
 		logger.Log.Error(err.Error(), zap.String("event", "save to file storage when closing file storage"))
@@ -94,7 +102,7 @@ func (s *FileStorage) Close() error {
 	return err
 }
 
-func (s *FileStorage) SetSaveInterval(interval int) {
+func (s *ServerFileStorage) SetSaveInterval(interval int) {
 	if interval <= 0 {
 		return
 	}
@@ -115,7 +123,7 @@ func (s *FileStorage) SetSaveInterval(interval int) {
 
 }
 
-func (s *FileStorage) FileStorageMiddleware(next http.Handler) http.Handler {
+func (s *ServerFileStorage) FileStorageMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		next.ServeHTTP(w, r)
 		if s.synchronous {
