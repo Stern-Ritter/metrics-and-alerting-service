@@ -4,8 +4,10 @@ import (
 	"fmt"
 
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
+	logger "github.com/Stern-Ritter/metrics-and-alerting-service/internal/logger/agent"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/monitors"
+	"go.uber.org/zap"
 )
 
 type AgentCache interface {
@@ -59,11 +61,14 @@ func (c *AgentMemCache) UpdateMonitorMetrics(m *monitors.Monitor) {
 
 func (c *AgentMemCache) updateMonitorMetric(metric metrics.GaugeMetric) {
 	_, err := c.UpdateGaugeMetric(metric)
-	if err == nil {
-		_, err := c.UpdateCounterMetric(metrics.NewCounter("PollCount", 1))
-		if err != nil {
-			fmt.Println(err)
-		}
+	if err != nil {
+		logger.Log.Error(err.Error(), zap.String("event", "update monitor metric"))
+		return
+	}
+
+	_, err = c.UpdateCounterMetric(metrics.NewCounter("PollCount", 1))
+	if err != nil {
+		logger.Log.Error(err.Error(), zap.String("event", "update PollCount counter metric"))
 	}
 }
 

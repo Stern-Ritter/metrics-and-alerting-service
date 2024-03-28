@@ -2,14 +2,15 @@ package agent
 
 import (
 	"encoding/json"
-	"fmt"
 	"runtime"
 
+	logger "github.com/Stern-Ritter/metrics-and-alerting-service/internal/logger/agent"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/monitors"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/storage"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/utils"
 	"github.com/go-resty/resty/v2"
+	"go.uber.org/zap"
 )
 
 func UpdateMetrics(cache storage.AgentCache, monitor *monitors.Monitor, rand *utils.Random) {
@@ -21,7 +22,7 @@ func UpdateMetrics(cache storage.AgentCache, monitor *monitors.Monitor, rand *ut
 	cache.UpdateMonitorMetrics(monitor)
 	_, err := cache.UpdateGaugeMetric(metrics.NewGauge("RandomValue", randomValue))
 	if err != nil {
-		fmt.Println(err)
+		logger.Log.Error(err.Error(), zap.String("event", "update RandomValue gauge metric"))
 	}
 }
 
@@ -30,20 +31,20 @@ func SendMetrics(client *resty.Client, url string, endpoint string, cache storag
 
 	err := cache.ResetMetricValue(string(metrics.Counter), "PollCount")
 	if err != nil {
-		fmt.Println(err)
+		logger.Log.Error(err.Error(), zap.String("event", "reset PollCount counter metric"))
 	}
 
 	for _, gaugeMetric := range gauges {
 		metric := metrics.GaugeMetricToMetrics(gaugeMetric)
 		body, err := json.Marshal(metric)
 		if err != nil {
-			fmt.Println(err)
+			logger.Log.Error(err.Error(), zap.String("event", "JSON encoding gauge metric"))
 			continue
 		}
 
 		_, err = sendPostRequest(client, url, endpoint, "application/json", body)
 		if err != nil {
-			fmt.Println(err)
+			logger.Log.Error(err.Error(), zap.String("event", "send update gauge metric"))
 		}
 	}
 
@@ -51,13 +52,13 @@ func SendMetrics(client *resty.Client, url string, endpoint string, cache storag
 		metric := metrics.CounterMetricToMetrics(counterMetric)
 		body, err := json.Marshal(metric)
 		if err != nil {
-			fmt.Println(err)
+			logger.Log.Error(err.Error(), zap.String("event", "JSON encoding counter metric"))
 			continue
 		}
 
 		_, err = sendPostRequest(client, url, endpoint, "application/json", body)
 		if err != nil {
-			fmt.Println(err)
+			logger.Log.Error(err.Error(), zap.String("event", "send update counter metric"))
 		}
 	}
 }
