@@ -6,6 +6,7 @@ import (
 	"time"
 
 	config "github.com/Stern-Ritter/metrics-and-alerting-service/internal/config/agent"
+	logger "github.com/Stern-Ritter/metrics-and-alerting-service/internal/logger/agent"
 	service "github.com/Stern-Ritter/metrics-and-alerting-service/internal/service/agent"
 )
 
@@ -15,8 +16,14 @@ const (
 
 func Run(a *service.Agent) error {
 	config, err := getConfig(config.AgentConfig{
-		SendMetricsEndPoint: "/update/{type}/{name}/{value}",
+		SendMetricsEndPoint: "/update",
+		LoggerLvl:           "info",
 	})
+	if err != nil {
+		return err
+	}
+
+	err = logger.Initialize(config.LoggerLvl)
 	if err != nil {
 		return err
 	}

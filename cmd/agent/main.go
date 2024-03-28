@@ -4,7 +4,8 @@ import (
 	"log"
 
 	app "github.com/Stern-Ritter/metrics-and-alerting-service/internal/app/agent"
-	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model"
+	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
+	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/monitors"
 	service "github.com/Stern-Ritter/metrics-and-alerting-service/internal/service/agent"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/storage"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/utils"
@@ -13,8 +14,8 @@ import (
 
 func main() {
 	httpClient := resty.New()
-	cache := storage.NewAgentMemCache(model.SupportedGaugeMetrics, model.SupportedCounterMetrics)
-	monitor := model.Monitor{}
+	cache := storage.NewAgentMemCache(metrics.SupportedGaugeMetrics, metrics.SupportedCounterMetrics)
+	monitor := monitors.Monitor{}
 	random := utils.NewRandom()
 	agent := service.NewAgent(httpClient, &cache, &monitor, &random)
 

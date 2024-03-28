@@ -104,3 +104,69 @@ func TestCopyMap(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateHostnamePort(t *testing.T) {
+	testCases := []struct {
+		name      string
+		hp        string
+		wantError bool
+	}{
+		{
+			name:      "return nil when valid hostname and port #1",
+			hp:        "localhost:8080",
+			wantError: false,
+		},
+		{
+			name:      "return nil when valid hostname and port #2",
+			hp:        "https://ya.ru:443",
+			wantError: false,
+		},
+		{
+			name:      "return error when hostname without port",
+			hp:        "localhost",
+			wantError: true,
+		},
+		{
+			name:      "return error when port without hostname",
+			hp:        ":8082",
+			wantError: true,
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateHostnamePort(tt.hp)
+			if tt.wantError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestAddProtocolPrefix(t *testing.T) {
+	testCases := []struct {
+		name string
+		url  string
+		want string
+	}{
+		{
+			name: "return url with prefix when ulr doesn`t have prefix",
+			url:  "pkg.go.dev/",
+			want: "http://pkg.go.dev/",
+		},
+		{
+			name: "return the same url when ulr has prefix",
+			url:  "http://pkg.go.dev/",
+			want: "http://pkg.go.dev/",
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			got := AddProtocolPrefix(tt.url)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}

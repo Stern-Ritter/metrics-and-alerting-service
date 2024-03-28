@@ -5,4 +5,5 @@ type AgentConfig struct {
 	SendMetricsEndPoint   string
 	UpdateMetricsInterval int `env:"POLL_INTERVAL"`
 	SendMetricsInterval   int `env:"REPORT_INTERVAL"`
+	LoggerLvl             string
 }
