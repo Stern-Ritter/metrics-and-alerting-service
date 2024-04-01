@@ -3,9 +3,11 @@ package storage
 import (
 	"testing"
 
+	logger "github.com/Stern-Ritter/metrics-and-alerting-service/internal/logger/agent"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/monitors"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestUpdateMonitorMetrics(t *testing.T) {
@@ -88,7 +90,9 @@ func TestUpdateMonitorMetrics(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			storage := NewAgentMemCache(metrics.SupportedGaugeMetrics, metrics.SupportedCounterMetrics)
+			logger, err := logger.Initialize("info")
+			require.NoError(t, err, "Error init logger")
+			storage := NewAgentMemCache(metrics.SupportedGaugeMetrics, metrics.SupportedCounterMetrics, logger)
 			storage.UpdateMonitorMetrics(tt.monitor)
 
 			gauges, counters := storage.GetMetrics()

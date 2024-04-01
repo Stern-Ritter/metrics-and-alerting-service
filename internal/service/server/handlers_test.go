@@ -6,7 +6,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/config/server"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
+	logger "github.com/Stern-Ritter/metrics-and-alerting-service/internal/logger/server"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
@@ -77,7 +79,10 @@ func TestUpdateMetricHandlerWithPathVars(t *testing.T) {
 				EXPECT().
 				UpdateMetric(gomock.Any(), gomock.Any(), gomock.Any()).
 				Return(tt.storageError)
-			s := NewServer(mockStorage)
+			config := &server.ServerConfig{}
+			logger, err := logger.Initialize("info")
+			require.NoError(t, err, "Error init logger")
+			s := NewServer(mockStorage, config, logger)
 
 			handler := http.HandlerFunc(s.UpdateMetricHandlerWithPathVars)
 			server := httptest.NewServer(handler)
@@ -146,8 +151,7 @@ func TestUpdateMetricHandlerWithBody(t *testing.T) {
 			returnedError:  nil,
 			want: want{
 				code: http.StatusOK,
-				body: `{"id":"Alloc","type":"gauge","value":22.2}
-`,
+				body: `{"id":"Alloc","type":"gauge","value":22.2}`,
 			},
 		},
 	}
@@ -164,7 +168,10 @@ func TestUpdateMetricHandlerWithBody(t *testing.T) {
 					UpdateGaugeMetric(gomock.Any()).
 					Return(tt.returnedMetric, tt.returnedError)
 			}
-			s := NewServer(mockStorage)
+			config := &server.ServerConfig{}
+			logger, err := logger.Initialize("info")
+			require.NoError(t, err, "Error init logger")
+			s := NewServer(mockStorage, config, logger)
 
 			handler := http.HandlerFunc(s.UpdateMetricHandlerWithBody)
 			server := httptest.NewServer(handler)
@@ -253,7 +260,10 @@ func TestGetMetricHandlerWithPathVars(t *testing.T) {
 				EXPECT().
 				GetMetricValueByTypeAndName(gomock.Any(), gomock.Any()).
 				Return(tt.storageReturnValue.value, tt.storageReturnValue.err)
-			s := NewServer(mockStorage)
+			config := &server.ServerConfig{}
+			logger, err := logger.Initialize("info")
+			require.NoError(t, err, "Error init logger")
+			s := NewServer(mockStorage, config, logger)
 
 			handler := http.HandlerFunc(s.GetMetricHandlerWithPathVars)
 			server := httptest.NewServer(handler)
@@ -322,8 +332,7 @@ func TestGetMetricHandlerWithBody(t *testing.T) {
 			returnedError:  nil,
 			want: want{
 				code: http.StatusOK,
-				body: `{"id":"Alloc","type":"gauge","value":22.2}
-`,
+				body: `{"id":"Alloc","type":"gauge","value":22.2}`,
 			},
 		},
 	}
@@ -340,7 +349,10 @@ func TestGetMetricHandlerWithBody(t *testing.T) {
 					GetGaugeMetric(gomock.Any()).
 					Return(tt.returnedMetric, tt.returnedError)
 			}
-			s := NewServer(mockStorage)
+			config := &server.ServerConfig{}
+			logger, err := logger.Initialize("info")
+			require.NoError(t, err, "Error init logger")
+			s := NewServer(mockStorage, config, logger)
 
 			handler := http.HandlerFunc(s.GetMetricHandlerWithBody)
 			server := httptest.NewServer(handler)
@@ -411,7 +423,10 @@ func TestGetMetricsHandler(t *testing.T) {
 				EXPECT().
 				GetMetrics().
 				Return(tt.storageReturnValue.gauges, tt.storageReturnValue.counters)
-			s := NewServer(mockStorage)
+			config := &server.ServerConfig{}
+			logger, err := logger.Initialize("info")
+			require.NoError(t, err, "Error init logger")
+			s := NewServer(mockStorage, config, logger)
 
 			handler := http.HandlerFunc(s.GetMetricsHandler)
 			server := httptest.NewServer(handler)

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,6 +12,7 @@ import (
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
 	"github.com/go-chi/chi"
+	"go.uber.org/zap"
 )
 
 func (s *Server) UpdateMetricHandlerWithPathVars(res http.ResponseWriter, req *http.Request) {
@@ -18,26 +20,40 @@ func (s *Server) UpdateMetricHandlerWithPathVars(res http.ResponseWriter, req *h
 	metricName := chi.URLParam(req, "name")
 	metricValue := chi.URLParam(req, "value")
 
-	err := s.storage.UpdateMetric(metricType, metricName, metricValue)
+	err := s.Storage.UpdateMetric(metricType, metricName, metricValue)
 	switch err.(type) {
 	case errors.InvalidMetricType, errors.InvalidMetricValue:
 		http.Error(res, err.Error(), http.StatusBadRequest)
 		return
+	}
+	if s.isSyncSaveStorageState() {
+		err := s.Storage.Save(s.Config.StorageFilePath)
+		if err != nil {
+			s.Logger.Error(err.Error(), zap.String("event", "sync save to file storage"))
+		} else {
+			s.Logger.Info("Success sync save to file storage", zap.String("event", "sync save to file storage"))
+		}
 	}
 	res.WriteHeader(http.StatusOK)
 }
 
 func (s *Server) UpdateMetricHandlerWithBody(res http.ResponseWriter, req *http.Request) {
 	metric := metrics.Metrics{}
-	dec := json.NewDecoder(req.Body)
-	if err := dec.Decode(&metric); err != nil {
+	buf := new(bytes.Buffer)
+	_, err := buf.ReadFrom(req.Body)
+
+	if err != nil {
+		http.Error(res, "Error decode request JSON body", http.StatusBadRequest)
+		return
+	}
+	if err = json.Unmarshal(buf.Bytes(), &metric); err != nil {
 		http.Error(res, "Error decode request JSON body", http.StatusBadRequest)
 		return
 	}
 
 	switch metrics.MetricType(metric.MType) {
 	case metrics.Gauge:
-		updatedMetric, err := s.storage.UpdateGaugeMetric(metrics.MetricsToGaugeMetric(metric))
+		updatedMetric, err := s.Storage.UpdateGaugeMetric(metrics.MetricsToGaugeMetric(metric))
 		if err != nil {
 			http.Error(res, err.Error(), http.StatusBadRequest)
 			return
@@ -47,7 +63,7 @@ func (s *Server) UpdateMetricHandlerWithBody(res http.ResponseWriter, req *http.
 		metric.Value = &value
 
 	case metrics.Counter:
-		updatedMetric, err := s.storage.UpdateCounterMetric(metrics.MetricsToCounterMetric(metric))
+		updatedMetric, err := s.Storage.UpdateCounterMetric(metrics.MetricsToCounterMetric(metric))
 		if err != nil {
 			http.Error(res, err.Error(), http.StatusBadRequest)
 			return
@@ -61,9 +77,22 @@ func (s *Server) UpdateMetricHandlerWithBody(res http.ResponseWriter, req *http.
 		return
 	}
 
+	if s.isSyncSaveStorageState() {
+		err := s.Storage.Save(s.Config.StorageFilePath)
+		if err != nil {
+			s.Logger.Error(err.Error(), zap.String("event", "sync save to file storage"))
+		} else {
+			s.Logger.Info("Success sync save to file storage", zap.String("event", "sync save to file storage"))
+		}
+	}
+
+	resp, err := json.Marshal(metric)
+	if err != nil {
+		http.Error(res, "Error encoding response", http.StatusInternalServerError)
+	}
 	res.Header().Set("Content-Type", "application/json")
-	enc := json.NewEncoder(res)
-	if err := enc.Encode(metric); err != nil {
+	_, err = res.Write(resp)
+	if err != nil {
 		http.Error(res, "Error encoding response", http.StatusInternalServerError)
 	}
 }
@@ -72,7 +101,7 @@ func (s *Server) GetMetricHandlerWithPathVars(res http.ResponseWriter, req *http
 	metricType := chi.URLParam(req, "type")
 	metricName := chi.URLParam(req, "name")
 
-	body, err := s.storage.GetMetricValueByTypeAndName(metricType, metricName)
+	body, err := s.Storage.GetMetricValueByTypeAndName(metricType, metricName)
 	switch err.(type) {
 	case errors.InvalidMetricType, errors.InvalidMetricName:
 		http.Error(res, err.Error(), http.StatusNotFound)
@@ -88,15 +117,20 @@ func (s *Server) GetMetricHandlerWithPathVars(res http.ResponseWriter, req *http
 
 func (s *Server) GetMetricHandlerWithBody(res http.ResponseWriter, req *http.Request) {
 	metric := metrics.Metrics{}
-	dec := json.NewDecoder(req.Body)
-	if err := dec.Decode(&metric); err != nil {
+	buf := new(bytes.Buffer)
+	_, err := buf.ReadFrom(req.Body)
+	if err != nil {
+		http.Error(res, "Error decode request JSON body", http.StatusBadRequest)
+		return
+	}
+	if err = json.Unmarshal(buf.Bytes(), &metric); err != nil {
 		http.Error(res, "Error decode request JSON body", http.StatusBadRequest)
 		return
 	}
 
 	switch metrics.MetricType(metric.MType) {
 	case metrics.Gauge:
-		savedMetric, err := s.storage.GetGaugeMetric(metric.ID)
+		savedMetric, err := s.Storage.GetGaugeMetric(metric.ID)
 		if err != nil {
 			metric.Value = &metrics.ZeroGaugeMetricValue
 			break
@@ -106,7 +140,7 @@ func (s *Server) GetMetricHandlerWithBody(res http.ResponseWriter, req *http.Req
 		metric.Value = &value
 
 	case metrics.Counter:
-		savedMetric, err := s.storage.GetCounterMetric(metric.ID)
+		savedMetric, err := s.Storage.GetCounterMetric(metric.ID)
 		if err != nil {
 			metric.Delta = &metrics.ZeroCounterMetricValue
 			break
@@ -120,15 +154,19 @@ func (s *Server) GetMetricHandlerWithBody(res http.ResponseWriter, req *http.Req
 		return
 	}
 
+	resp, err := json.Marshal(metric)
+	if err != nil {
+		http.Error(res, "Error encoding response", http.StatusInternalServerError)
+	}
 	res.Header().Set("Content-Type", "application/json")
-	enc := json.NewEncoder(res)
-	if err := enc.Encode(metric); err != nil {
+	_, err = res.Write(resp)
+	if err != nil {
 		http.Error(res, "Error encoding response", http.StatusInternalServerError)
 	}
 }
 
 func (s *Server) GetMetricsHandler(res http.ResponseWriter, req *http.Request) {
-	gauges, counters := s.storage.GetMetrics()
+	gauges, counters := s.Storage.GetMetrics()
 	body := getMetricsString(gauges, counters)
 
 	res.Header().Set("Content-type", "text/html")
@@ -150,4 +188,10 @@ func getMetricsString(gauges map[string]metrics.GaugeMetric, counters map[string
 	sort.Strings(metricsNames)
 
 	return strings.Join(metricsNames, ",\n")
+}
+
+func (s *Server) isSyncSaveStorageState() bool {
+	isFileStorageEnabled := len(strings.TrimSpace(s.Config.StorageFilePath)) != 0
+	isSyncSaveStorageState := s.Config.StoreInterval == 0
+	return isFileStorageEnabled && isSyncSaveStorageState
 }

@@ -113,6 +113,34 @@ func (mr *MockServerStorageMockRecorder) ResetMetricValue(metricType, metricName
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResetMetricValue", reflect.TypeOf((*MockServerStorage)(nil).ResetMetricValue), metricType, metricName)
 }
 
+// Restore mocks base method.
+func (m *MockServerStorage) Restore(fname string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Restore", fname)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Restore indicates an expected call of Restore.
+func (mr *MockServerStorageMockRecorder) Restore(fname any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Restore", reflect.TypeOf((*MockServerStorage)(nil).Restore), fname)
+}
+
+// Save mocks base method.
+func (m *MockServerStorage) Save(fname string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Save", fname)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Save indicates an expected call of Save.
+func (mr *MockServerStorageMockRecorder) Save(fname any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Save", reflect.TypeOf((*MockServerStorage)(nil).Save), fname)
+}
+
 // SetCounterMetrics mocks base method.
 func (m *MockServerStorage) SetCounterMetrics(counters map[string]metrics.CounterMetric) {
 	m.ctrl.T.Helper()
@@ -135,6 +163,18 @@ func (m *MockServerStorage) SetGaugeMetircs(gauges map[string]metrics.GaugeMetri
 func (mr *MockServerStorageMockRecorder) SetGaugeMetircs(gauges any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetGaugeMetircs", reflect.TypeOf((*MockServerStorage)(nil).SetGaugeMetircs), gauges)
+}
+
+// SetSaveInterval mocks base method.
+func (m *MockServerStorage) SetSaveInterval(fname string, interval int) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "SetSaveInterval", fname, interval)
+}
+
+// SetSaveInterval indicates an expected call of SetSaveInterval.
+func (mr *MockServerStorageMockRecorder) SetSaveInterval(fname, interval any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetSaveInterval", reflect.TypeOf((*MockServerStorage)(nil).SetSaveInterval), fname, interval)
 }
 
 // UpdateCounterMetric mocks base method.

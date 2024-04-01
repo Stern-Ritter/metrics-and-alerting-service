@@ -1,25 +1,18 @@
 package server
 
 import (
-	file "github.com/Stern-Ritter/metrics-and-alerting-service/internal/file/server"
+	config "github.com/Stern-Ritter/metrics-and-alerting-service/internal/config/server"
+	logger "github.com/Stern-Ritter/metrics-and-alerting-service/internal/logger/server"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/storage"
 )
 
 type Server struct {
-	storage     storage.ServerStorage
-	FileStorage file.FileStorage
+	Storage storage.ServerStorage
+	Config  *config.ServerConfig
+	Logger  *logger.ServerLogger
 }
 
-func NewServer(storage storage.ServerStorage) *Server {
-	return &Server{storage: storage}
-}
-
-func (s *Server) AddFileStorage(fname string) error {
-	fileStorage, err := file.NewServerFileStorage(fname, s.storage)
-	if err != nil {
-		return err
-	}
-
-	s.FileStorage = fileStorage
-	return nil
+func NewServer(storage storage.ServerStorage, config *config.ServerConfig,
+	logger *logger.ServerLogger) *Server {
+	return &Server{Storage: storage, Config: config, Logger: logger}
 }

@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
-	logger "github.com/Stern-Ritter/metrics-and-alerting-service/internal/logger/agent"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/monitors"
 	"go.uber.org/zap"
@@ -17,15 +16,17 @@ type AgentCache interface {
 
 type AgentMemCache struct {
 	MemStorage
+	Logger *zap.Logger
 }
 
 func NewAgentMemCache(supportedGaugeMetrics map[string]metrics.GaugeMetric,
-	supportedCounterMetrics map[string]metrics.CounterMetric) AgentMemCache {
+	supportedCounterMetrics map[string]metrics.CounterMetric, logger *zap.Logger) AgentMemCache {
 	return AgentMemCache{
 		MemStorage: MemStorage{
 			gauges:   supportedGaugeMetrics,
 			counters: supportedCounterMetrics,
 		},
+		Logger: logger,
 	}
 }
 
@@ -62,13 +63,13 @@ func (c *AgentMemCache) UpdateMonitorMetrics(m *monitors.Monitor) {
 func (c *AgentMemCache) updateMonitorMetric(metric metrics.GaugeMetric) {
 	_, err := c.UpdateGaugeMetric(metric)
 	if err != nil {
-		logger.Log.Error(err.Error(), zap.String("event", "update monitor metric"))
+		c.Logger.Error(err.Error(), zap.String("event", "update monitor metric"))
 		return
 	}
 
 	_, err = c.UpdateCounterMetric(metrics.NewCounter("PollCount", 1))
 	if err != nil {
-		logger.Log.Error(err.Error(), zap.String("event", "update PollCount counter metric"))
+		c.Logger.Error(err.Error(), zap.String("event", "update PollCount counter metric"))
 	}
 }
 

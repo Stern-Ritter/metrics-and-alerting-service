@@ -8,7 +8,7 @@ import (
 	"github.com/caarlos0/env"
 )
 
-func getConfig(c config.ServerConfig) (config.ServerConfig, error) {
+func GetConfig(c config.ServerConfig) (config.ServerConfig, error) {
 	err := parseFlags(&c)
 	if err != nil {
 		return c, err

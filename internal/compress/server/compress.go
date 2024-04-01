@@ -77,7 +77,7 @@ func GzipMiddleware(next http.Handler) http.Handler {
 		contentEncoding := r.Header.Values("Content-Encoding")
 		sendsGzip := utils.Contains(contentEncoding, "gzip")
 		contentType := r.Header.Values("Content-type")
-		needUncompress := utils.Contains(contentType, compressedContentTypes...)
+		needUncompress := utils.Contains(compressedContentTypes, contentType...)
 
 		if sendsGzip && needUncompress {
 			cr, err := NewCompressReader(r.Body)
