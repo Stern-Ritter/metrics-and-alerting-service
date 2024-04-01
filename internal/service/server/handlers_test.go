@@ -108,14 +108,16 @@ func TestUpdateMetricHandlerWithBody(t *testing.T) {
 	}
 
 	testCases := []struct {
-		name           string
-		method         string
-		url            string
-		body           string
-		useStorage     bool
-		returnedMetric metrics.GaugeMetric
-		returnedError  error
-		want           want
+		name                  string
+		method                string
+		url                   string
+		body                  string
+		useStorage            bool
+		typeMetric            string
+		returnedGaugeMetric   metrics.GaugeMetric
+		returnedCounterMetric metrics.CounterMetric
+		returnedError         error
+		want                  want
 	}{
 		{
 			name:       "should return status code 500 when body contains incorrect json",
@@ -129,29 +131,43 @@ func TestUpdateMetricHandlerWithBody(t *testing.T) {
 			},
 		},
 		{
-			name:           "should return status code 400 when body contains invalid metric type",
-			method:         http.MethodPost,
-			url:            "/update",
-			body:           `{ "id": "Alloc", "type": "unknown", "value": 22.2 }`,
-			useStorage:     false,
-			returnedMetric: metrics.GaugeMetric{},
-			returnedError:  nil,
+			name:          "should return status code 400 when body contains invalid metric type",
+			method:        http.MethodPost,
+			url:           "/update",
+			body:          `{ "id": "Alloc", "type": "unknown", "value": 22.2 }`,
+			useStorage:    false,
+			returnedError: nil,
 			want: want{
 				code: http.StatusBadRequest,
 				body: "Invalid metric type: unknown\n",
 			},
 		},
 		{
-			name:           "should return status code 200 when body contains valid metric type",
-			method:         http.MethodPost,
-			url:            "/update",
-			body:           `{ "id": "Alloc", "type": "gauge", "value": 22.2}`,
-			useStorage:     true,
-			returnedMetric: metrics.NewGauge("Alloc", 22.2),
-			returnedError:  nil,
+			name:                "should return status code 200 when body contains valid gauge metric",
+			method:              http.MethodPost,
+			url:                 "/update",
+			body:                `{ "id": "Alloc", "type": "gauge", "value": 22.2}`,
+			useStorage:          true,
+			typeMetric:          "gauge",
+			returnedGaugeMetric: metrics.NewGauge("Alloc", 22.2),
+			returnedError:       nil,
 			want: want{
 				code: http.StatusOK,
 				body: `{"id":"Alloc","type":"gauge","value":22.2}`,
+			},
+		},
+		{
+			name:                  "should return status code 200 when body contains valid counter metric",
+			method:                http.MethodPost,
+			url:                   "/update",
+			body:                  `{ "id": "PoolCount", "type": "counter", "delta": 10}`,
+			useStorage:            true,
+			typeMetric:            "counter",
+			returnedCounterMetric: metrics.NewCounter("PoolCount", 10),
+			returnedError:         nil,
+			want: want{
+				code: http.StatusOK,
+				body: `{"id":"PoolCount","type":"counter","delta":10}`,
 			},
 		},
 	}
@@ -163,11 +179,20 @@ func TestUpdateMetricHandlerWithBody(t *testing.T) {
 
 			mockStorage := NewMockServerStorage(ctrl)
 			if tt.useStorage {
-				mockStorage.
-					EXPECT().
-					UpdateGaugeMetric(gomock.Any()).
-					Return(tt.returnedMetric, tt.returnedError)
+				if tt.typeMetric == "gauge" {
+					mockStorage.
+						EXPECT().
+						UpdateGaugeMetric(gomock.Any()).
+						Return(tt.returnedGaugeMetric, tt.returnedError)
+				}
+				if tt.typeMetric == "counter" {
+					mockStorage.
+						EXPECT().
+						UpdateCounterMetric(gomock.Any()).
+						Return(tt.returnedCounterMetric, tt.returnedError)
+				}
 			}
+
 			config := &server.ServerConfig{}
 			logger, err := logger.Initialize("info")
 			require.NoError(t, err, "Error init logger")
@@ -183,7 +208,6 @@ func TestUpdateMetricHandlerWithBody(t *testing.T) {
 			req.URL = fmt.Sprintf("%s%s", server.URL, tt.url)
 
 			resp, err := req.Send()
-
 			require.NoError(t, err, "Error making HTTP request")
 			assert.Equal(t, tt.want.code, resp.StatusCode(), "Response code didn't match expected")
 			assert.Equal(t, tt.want.body, string(resp.Body()))
@@ -289,14 +313,16 @@ func TestGetMetricHandlerWithBody(t *testing.T) {
 	}
 
 	testCases := []struct {
-		name           string
-		method         string
-		url            string
-		body           string
-		useStorage     bool
-		returnedMetric metrics.GaugeMetric
-		returnedError  error
-		want           want
+		name                  string
+		method                string
+		url                   string
+		body                  string
+		useStorage            bool
+		metricType            string
+		returnedGaugeMetric   metrics.GaugeMetric
+		returnedCounterMetric metrics.CounterMetric
+		returnedError         error
+		want                  want
 	}{
 		{
 			name:       "should return status code 500 when body contains incorrect json",
@@ -310,29 +336,42 @@ func TestGetMetricHandlerWithBody(t *testing.T) {
 			},
 		},
 		{
-			name:           "should return status code 400 when body contains invalid metric type",
-			method:         http.MethodPost,
-			url:            "/value",
-			body:           `{ "id": "Alloc", "type": "unknown" }`,
-			useStorage:     false,
-			returnedMetric: metrics.GaugeMetric{},
-			returnedError:  nil,
+			name:       "should return status code 400 when body contains invalid metric type",
+			method:     http.MethodPost,
+			url:        "/value",
+			body:       `{ "id": "Alloc", "type": "unknown" }`,
+			useStorage: false,
 			want: want{
 				code: http.StatusBadRequest,
 				body: "Invalid metric type: unknown\n",
 			},
 		},
 		{
-			name:           "should return status code 200 when body contains valid metric type",
-			method:         http.MethodPost,
-			url:            "/value",
-			body:           `{"id": "Alloc", "type": "gauge"}`,
-			useStorage:     true,
-			returnedMetric: metrics.NewGauge("Alloc", 22.2),
-			returnedError:  nil,
+			name:                "should return status code 200 when body contains valid gauge metric",
+			method:              http.MethodPost,
+			url:                 "/value",
+			body:                `{"id": "Alloc", "type": "gauge"}`,
+			useStorage:          true,
+			metricType:          "gauge",
+			returnedGaugeMetric: metrics.NewGauge("Alloc", 22.2),
+			returnedError:       nil,
 			want: want{
 				code: http.StatusOK,
 				body: `{"id":"Alloc","type":"gauge","value":22.2}`,
+			},
+		},
+		{
+			name:                  "should return status code 200 when body contains valid counter metric",
+			method:                http.MethodPost,
+			url:                   "/value",
+			body:                  `{"id": "PoolCount", "type": "counter"}`,
+			useStorage:            true,
+			metricType:            "counter",
+			returnedCounterMetric: metrics.NewCounter("PoolCount", 10),
+			returnedError:         nil,
+			want: want{
+				code: http.StatusOK,
+				body: `{"id":"PoolCount","type":"counter","delta":10}`,
 			},
 		},
 	}
@@ -344,10 +383,18 @@ func TestGetMetricHandlerWithBody(t *testing.T) {
 
 			mockStorage := NewMockServerStorage(ctrl)
 			if tt.useStorage {
-				mockStorage.
-					EXPECT().
-					GetGaugeMetric(gomock.Any()).
-					Return(tt.returnedMetric, tt.returnedError)
+				if tt.metricType == "gauge" {
+					mockStorage.
+						EXPECT().
+						GetGaugeMetric(gomock.Any()).
+						Return(tt.returnedGaugeMetric, tt.returnedError)
+				}
+				if tt.metricType == "counter" {
+					mockStorage.
+						EXPECT().
+						GetCounterMetric(gomock.Any()).
+						Return(tt.returnedCounterMetric, tt.returnedError)
+				}
 			}
 			config := &server.ServerConfig{}
 			logger, err := logger.Initialize("info")
