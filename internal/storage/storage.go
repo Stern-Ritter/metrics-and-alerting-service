@@ -10,19 +10,6 @@ import (
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/utils"
 )
 
-type Storage interface {
-	UpdateGaugeMetric(metric metrics.GaugeMetric) (metrics.GaugeMetric, error)
-	UpdateCounterMetric(metric metrics.CounterMetric) (metrics.CounterMetric, error)
-	UpdateMetric(metricType, metricName, metricValue string) error
-	ResetMetricValue(metricType, metricName string) error
-	GetMetricValueByTypeAndName(metricType, metricName string) (string, error)
-	GetGaugeMetric(metricName string) (metrics.GaugeMetric, error)
-	GetCounterMetric(metricName string) (metrics.CounterMetric, error)
-	GetMetrics() (map[string]metrics.GaugeMetric, map[string]metrics.CounterMetric)
-	SetGaugeMetircs(gauges map[string]metrics.GaugeMetric)
-	SetCounterMetrics(counters map[string]metrics.CounterMetric)
-}
-
 type MemStorage struct {
 	gaugesMu   sync.Mutex
 	gauges     map[string]metrics.GaugeMetric

@@ -25,7 +25,8 @@ func main() {
 	}
 
 	storage := storage.NewServerMemStorage(logger)
-	server := service.NewServer(&storage, &config, logger)
+	metricService := service.NewMetricService(&storage, logger)
+	server := service.NewServer(metricService, &config, logger)
 
 	err = app.Run(server)
 	if err != nil {

@@ -17,7 +17,13 @@ type StorageState struct {
 }
 
 type ServerStorage interface {
-	Storage
+	UpdateMetric(metricType, metricName, metricValue string) error
+	UpdateGaugeMetric(metric metrics.GaugeMetric) (metrics.GaugeMetric, error)
+	UpdateCounterMetric(metric metrics.CounterMetric) (metrics.CounterMetric, error)
+	GetMetricValueByTypeAndName(metricType, metricName string) (string, error)
+	GetGaugeMetric(metricName string) (metrics.GaugeMetric, error)
+	GetCounterMetric(metricName string) (metrics.CounterMetric, error)
+	GetMetrics() (map[string]metrics.GaugeMetric, map[string]metrics.CounterMetric)
 	Restore(fname string) error
 	Save(fname string) error
 	SetSaveInterval(fname string, interval int)

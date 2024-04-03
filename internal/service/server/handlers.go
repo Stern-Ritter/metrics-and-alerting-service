@@ -3,7 +3,6 @@ package server
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"sort"
@@ -12,7 +11,6 @@ import (
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
 	"github.com/go-chi/chi"
-	"go.uber.org/zap"
 )
 
 func (s *Server) UpdateMetricHandlerWithPathVars(res http.ResponseWriter, req *http.Request) {
@@ -20,73 +18,33 @@ func (s *Server) UpdateMetricHandlerWithPathVars(res http.ResponseWriter, req *h
 	metricName := chi.URLParam(req, "name")
 	metricValue := chi.URLParam(req, "value")
 
-	err := s.Storage.UpdateMetric(metricType, metricName, metricValue)
+	err := s.MetricService.UpdateMetricWithPathVars(metricType, metricName, metricValue, s.isSyncSaveStorageState(),
+		s.Config.StorageFilePath)
+
 	switch err.(type) {
 	case errors.InvalidMetricType, errors.InvalidMetricValue:
 		http.Error(res, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if s.isSyncSaveStorageState() {
-		err := s.Storage.Save(s.Config.StorageFilePath)
-		if err != nil {
-			s.Logger.Error(err.Error(), zap.String("event", "sync save to file storage"))
-		} else {
-			s.Logger.Info("Success sync save to file storage", zap.String("event", "sync save to file storage"))
-		}
-	}
+
 	res.WriteHeader(http.StatusOK)
 }
 
 func (s *Server) UpdateMetricHandlerWithBody(res http.ResponseWriter, req *http.Request) {
-	metric := metrics.Metrics{}
-	buf := new(bytes.Buffer)
-	_, err := buf.ReadFrom(req.Body)
-
+	metric, err := decodeMetrics(req.Body)
 	if err != nil {
 		http.Error(res, "Error decode request JSON body", http.StatusBadRequest)
 		return
 	}
-	if err = json.Unmarshal(buf.Bytes(), &metric); err != nil {
-		http.Error(res, "Error decode request JSON body", http.StatusBadRequest)
+
+	updatedMetric, err := s.MetricService.UpdateMetricWithBody(metric, s.isSyncSaveStorageState(),
+		s.Config.StorageFilePath)
+	if err != nil {
+		http.Error(res, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	switch metrics.MetricType(metric.MType) {
-	case metrics.Gauge:
-		updatedMetric, err := s.Storage.UpdateGaugeMetric(metrics.MetricsToGaugeMetric(metric))
-		if err != nil {
-			http.Error(res, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		value := updatedMetric.GetValue()
-		metric.Value = &value
-
-	case metrics.Counter:
-		updatedMetric, err := s.Storage.UpdateCounterMetric(metrics.MetricsToCounterMetric(metric))
-		if err != nil {
-			http.Error(res, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		delta := updatedMetric.GetValue()
-		metric.Delta = &delta
-
-	default:
-		http.Error(res, fmt.Sprintf("Invalid metric type: %s", metric.MType), http.StatusBadRequest)
-		return
-	}
-
-	if s.isSyncSaveStorageState() {
-		err := s.Storage.Save(s.Config.StorageFilePath)
-		if err != nil {
-			s.Logger.Error(err.Error(), zap.String("event", "sync save to file storage"))
-		} else {
-			s.Logger.Info("Success sync save to file storage", zap.String("event", "sync save to file storage"))
-		}
-	}
-
-	resp, err := json.Marshal(metric)
+	resp, err := json.Marshal(updatedMetric)
 	if err != nil {
 		http.Error(res, "Error encoding response", http.StatusInternalServerError)
 	}
@@ -101,56 +59,32 @@ func (s *Server) GetMetricHandlerWithPathVars(res http.ResponseWriter, req *http
 	metricType := chi.URLParam(req, "type")
 	metricName := chi.URLParam(req, "name")
 
-	body, err := s.Storage.GetMetricValueByTypeAndName(metricType, metricName)
+	value, err := s.MetricService.GetMetricValueByTypeAndName(metricType, metricName)
+
 	switch err.(type) {
 	case errors.InvalidMetricType, errors.InvalidMetricName:
 		http.Error(res, err.Error(), http.StatusNotFound)
 		return
 	}
+
 	res.Header().Set("Content-type", "text/plain")
 	res.WriteHeader(http.StatusOK)
-	_, err = io.WriteString(res, body)
+	_, err = io.WriteString(res, value)
 	if err != nil {
 		http.Error(res, err.Error(), http.StatusInternalServerError)
 	}
 }
 
 func (s *Server) GetMetricHandlerWithBody(res http.ResponseWriter, req *http.Request) {
-	metric := metrics.Metrics{}
-	buf := new(bytes.Buffer)
-	_, err := buf.ReadFrom(req.Body)
+	metric, err := decodeMetrics(req.Body)
 	if err != nil {
 		http.Error(res, "Error decode request JSON body", http.StatusBadRequest)
 		return
 	}
-	if err = json.Unmarshal(buf.Bytes(), &metric); err != nil {
-		http.Error(res, "Error decode request JSON body", http.StatusBadRequest)
-		return
-	}
 
-	switch metrics.MetricType(metric.MType) {
-	case metrics.Gauge:
-		savedMetric, err := s.Storage.GetGaugeMetric(metric.ID)
-		if err != nil {
-			metric.Value = &metrics.ZeroGaugeMetricValue
-			break
-		}
-
-		value := savedMetric.GetValue()
-		metric.Value = &value
-
-	case metrics.Counter:
-		savedMetric, err := s.Storage.GetCounterMetric(metric.ID)
-		if err != nil {
-			metric.Delta = &metrics.ZeroCounterMetricValue
-			break
-		}
-
-		delta := savedMetric.GetValue()
-		metric.Delta = &delta
-
-	default:
-		http.Error(res, fmt.Sprintf("Invalid metric type: %s", metric.MType), http.StatusBadRequest)
+	metric, err = s.MetricService.GetMetricHandlerWithBody(metric)
+	if err != nil {
+		http.Error(res, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -166,7 +100,7 @@ func (s *Server) GetMetricHandlerWithBody(res http.ResponseWriter, req *http.Req
 }
 
 func (s *Server) GetMetricsHandler(res http.ResponseWriter, req *http.Request) {
-	gauges, counters := s.Storage.GetMetrics()
+	gauges, counters := s.MetricService.GetMetrics()
 	body := getMetricsString(gauges, counters)
 
 	res.Header().Set("Content-type", "text/html")
@@ -188,6 +122,18 @@ func getMetricsString(gauges map[string]metrics.GaugeMetric, counters map[string
 	sort.Strings(metricsNames)
 
 	return strings.Join(metricsNames, ",\n")
+}
+
+func decodeMetrics(source io.ReadCloser) (metrics.Metrics, error) {
+	metric := metrics.Metrics{}
+	buf := new(bytes.Buffer)
+	_, err := buf.ReadFrom(source)
+	if err != nil {
+		return metric, err
+	}
+
+	err = json.Unmarshal(buf.Bytes(), &metric)
+	return metric, err
 }
 
 func (s *Server) isSyncSaveStorageState() bool {

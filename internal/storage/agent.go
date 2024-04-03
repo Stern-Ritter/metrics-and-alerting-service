@@ -10,8 +10,11 @@ import (
 )
 
 type AgentCache interface {
-	Storage
+	UpdateGaugeMetric(metric metrics.GaugeMetric) (metrics.GaugeMetric, error)
+	UpdateCounterMetric(metric metrics.CounterMetric) (metrics.CounterMetric, error)
 	UpdateMonitorMetrics(m *monitors.Monitor)
+	ResetMetricValue(metricType, metricName string) error
+	GetMetrics() (map[string]metrics.GaugeMetric, map[string]metrics.CounterMetric)
 }
 
 type AgentMemCache struct {
