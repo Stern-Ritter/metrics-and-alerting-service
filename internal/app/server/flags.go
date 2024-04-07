@@ -8,7 +8,7 @@ import (
 	"github.com/caarlos0/env"
 )
 
-func getConfig(c config.ServerConfig) (config.ServerConfig, error) {
+func GetConfig(c config.ServerConfig) (config.ServerConfig, error) {
 	err := parseFlags(&c)
 	if err != nil {
 		return c, err
@@ -24,6 +24,9 @@ func getConfig(c config.ServerConfig) (config.ServerConfig, error) {
 
 func parseFlags(c *config.ServerConfig) error {
 	flag.StringVar(&c.URL, "a", "localhost:8080", "address and port to run server in format <host>:<port>")
+	flag.IntVar(&c.StoreInterval, "i", 300, "interval to store metrics to file in seconds")
+	flag.StringVar(&c.StorageFilePath, "f", "/tmp/metrics-db.json", "metrics storage file path")
+	flag.BoolVar(&c.Restore, "r", true, "will metrics be restored from the file")
 	flag.Parse()
 	err := utils.ValidateHostnamePort(c.URL)
 

@@ -3,23 +3,26 @@ package storage
 import (
 	"testing"
 
-	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model"
+	logger "github.com/Stern-Ritter/metrics-and-alerting-service/internal/logger/agent"
+	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
+	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/monitors"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestUpdateMonitorMetrics(t *testing.T) {
 	type state struct {
-		gauges   map[string]model.GaugeMetric
-		counters map[string]model.CounterMetric
+		gauges   map[string]metrics.GaugeMetric
+		counters map[string]metrics.CounterMetric
 	}
 
 	testCases := []struct {
 		name          string
-		monitor       *model.Monitor
+		monitor       *monitors.Monitor
 		expectedState state
 	}{{
 		name: "should correct update monitor metrics and related counters",
-		monitor: &model.Monitor{
+		monitor: &monitors.Monitor{
 			Alloc:         1.0,
 			BuckHashSys:   2.0,
 			Frees:         3.0,
@@ -49,37 +52,37 @@ func TestUpdateMonitorMetrics(t *testing.T) {
 			TotalAlloc:    27.0,
 		},
 		expectedState: state{
-			gauges: map[string]model.GaugeMetric{
-				"Alloc":         model.NewGauge("Alloc", 1.0),
-				"BuckHashSys":   model.NewGauge("BuckHashSys", 2.0),
-				"Frees":         model.NewGauge("Frees", 3.0),
-				"GCCPUFraction": model.NewGauge("GCCPUFraction", 4.0),
-				"GCSys":         model.NewGauge("GCSys", 5.0),
-				"HeapAlloc":     model.NewGauge("HeapAlloc", 6.0),
-				"HeapIdle":      model.NewGauge("HeapIdle", 7.0),
-				"HeapInuse":     model.NewGauge("HeapInuse", 8.0),
-				"HeapObjects":   model.NewGauge("HeapObjects", 9.0),
-				"HeapReleased":  model.NewGauge("HeapReleased", 10.0),
-				"HeapSys":       model.NewGauge("HeapSys", 11.0),
-				"LastGC":        model.NewGauge("LastGC", 12.0),
-				"Lookups":       model.NewGauge("Lookups", 13.0),
-				"MCacheInuse":   model.NewGauge("MCacheInuse", 14.0),
-				"MCacheSys":     model.NewGauge("MCacheSys", 15.0),
-				"MSpanInuse":    model.NewGauge("MSpanInuse", 16.0),
-				"MSpanSys":      model.NewGauge("MSpanSys", 17.0),
-				"Mallocs":       model.NewGauge("Mallocs", 18.0),
-				"NextGC":        model.NewGauge("NextGC", 19.0),
-				"NumForcedGC":   model.NewGauge("NumForcedGC", 20.0),
-				"NumGC":         model.NewGauge("NumGC", 21.0),
-				"OtherSys":      model.NewGauge("OtherSys", 22.0),
-				"PauseTotalNs":  model.NewGauge("PauseTotalNs", 23.0),
-				"StackInuse":    model.NewGauge("StackInuse", 24.0),
-				"StackSys":      model.NewGauge("StackSys", 25.0),
-				"Sys":           model.NewGauge("Sys", 26.0),
-				"TotalAlloc":    model.NewGauge("TotalAlloc", 27.0),
+			gauges: map[string]metrics.GaugeMetric{
+				"Alloc":         metrics.NewGauge("Alloc", 1.0),
+				"BuckHashSys":   metrics.NewGauge("BuckHashSys", 2.0),
+				"Frees":         metrics.NewGauge("Frees", 3.0),
+				"GCCPUFraction": metrics.NewGauge("GCCPUFraction", 4.0),
+				"GCSys":         metrics.NewGauge("GCSys", 5.0),
+				"HeapAlloc":     metrics.NewGauge("HeapAlloc", 6.0),
+				"HeapIdle":      metrics.NewGauge("HeapIdle", 7.0),
+				"HeapInuse":     metrics.NewGauge("HeapInuse", 8.0),
+				"HeapObjects":   metrics.NewGauge("HeapObjects", 9.0),
+				"HeapReleased":  metrics.NewGauge("HeapReleased", 10.0),
+				"HeapSys":       metrics.NewGauge("HeapSys", 11.0),
+				"LastGC":        metrics.NewGauge("LastGC", 12.0),
+				"Lookups":       metrics.NewGauge("Lookups", 13.0),
+				"MCacheInuse":   metrics.NewGauge("MCacheInuse", 14.0),
+				"MCacheSys":     metrics.NewGauge("MCacheSys", 15.0),
+				"MSpanInuse":    metrics.NewGauge("MSpanInuse", 16.0),
+				"MSpanSys":      metrics.NewGauge("MSpanSys", 17.0),
+				"Mallocs":       metrics.NewGauge("Mallocs", 18.0),
+				"NextGC":        metrics.NewGauge("NextGC", 19.0),
+				"NumForcedGC":   metrics.NewGauge("NumForcedGC", 20.0),
+				"NumGC":         metrics.NewGauge("NumGC", 21.0),
+				"OtherSys":      metrics.NewGauge("OtherSys", 22.0),
+				"PauseTotalNs":  metrics.NewGauge("PauseTotalNs", 23.0),
+				"StackInuse":    metrics.NewGauge("StackInuse", 24.0),
+				"StackSys":      metrics.NewGauge("StackSys", 25.0),
+				"Sys":           metrics.NewGauge("Sys", 26.0),
+				"TotalAlloc":    metrics.NewGauge("TotalAlloc", 27.0),
 			},
-			counters: map[string]model.CounterMetric{
-				"PollCount": model.NewCounter("PollCount", 27),
+			counters: map[string]metrics.CounterMetric{
+				"PollCount": metrics.NewCounter("PollCount", 27),
 			},
 		},
 	},
@@ -87,7 +90,9 @@ func TestUpdateMonitorMetrics(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			storage := NewAgentMemCache(model.SupportedGaugeMetrics, model.SupportedCounterMetrics)
+			logger, err := logger.Initialize("info")
+			require.NoError(t, err, "Error init logger")
+			storage := NewAgentMemCache(metrics.SupportedGaugeMetrics, metrics.SupportedCounterMetrics, logger)
 			storage.UpdateMonitorMetrics(tt.monitor)
 
 			gauges, counters := storage.GetMetrics()

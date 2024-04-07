@@ -1,0 +1,135 @@
+openapi: 3.0.0
+info:
+  version: 1.0.0
+  title: Metrics and alerting service
+  description: Metrics and alerting service
+
+servers:
+  - url: http://localhost:8080
+
+paths:
+  /:
+    get:
+      description: Returns html with list of metrics              
+      responses:
+        '200':
+          description: Successful response
+          content:
+            text/html:
+              schema:
+                type: string
+
+  /update:
+    post:
+      description: Create or update metric with json body
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Metric'  
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Metric' 
+        '400':
+          $ref: '#/components/responses/400Error'
+
+  /update/{type}/{name}/{value}:
+    post:
+      description: Create or update metric with path variables             
+      parameters:
+        - $ref: '#/components/parameters/MetricType'
+        - $ref: '#/components/parameters/MetricName'
+        - $ref: '#/components/parameters/MetricValue'
+      responses:
+        '200':
+          description: Successful response
+        '400':
+          $ref: '#/components/responses/400Error'
+
+
+  /value/{type}/{name}:
+    get:
+      description: Get current metric value with path variables
+      parameters:
+        - $ref: '#/components/parameters/MetricType'
+        - $ref: '#/components/parameters/MetricName'    
+      responses:
+        '200':
+          description: Successful response
+          content:
+            text/html:
+              schema:
+                type: string
+        '400':
+          $ref: '#/components/responses/400Error'
+
+  /value:
+    post:
+      description: Get current metric value with json body
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Metric'            
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Metric' 
+        '400':
+          $ref: '#/components/responses/400Error'
+
+components:
+  schemas:
+    Metric:   
+      type: object
+      required:
+        - metric
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        delta:
+          type: integer
+        value:
+          type: number  
+  
+  parameters:
+    MetricType:
+      name: type 
+      in: path
+      required: true
+      description: metric type
+      schema:
+        type: string
+    MetricName:
+      name: name
+      in: path
+      required: true
+      description: metric name
+      schema:
+        type: string
+    MetricValue:
+      name: value
+      in: path
+      required: true
+      description: metric value
+      schema:
+        type: number
+
+  responses:
+    400Error:
+      description: Invalid request
+      content:
+        text/html:
+          schema:
+            type: string

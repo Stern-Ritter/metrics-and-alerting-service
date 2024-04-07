@@ -6,8 +6,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/config/server"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
-	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model"
+	logger "github.com/Stern-Ritter/metrics-and-alerting-service/internal/logger/server"
+	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -22,7 +24,7 @@ const (
 	invalidMetricValueErrorText = "Storage error text for invalid metric value"
 )
 
-func TestUpdateMetricHandler(t *testing.T) {
+func TestUpdateMetricHandlerWithPathVars(t *testing.T) {
 	type want struct {
 		code int
 		body string
@@ -70,14 +72,20 @@ func TestUpdateMetricHandler(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
 			mockStorage := NewMockServerStorage(ctrl)
 			mockStorage.
 				EXPECT().
 				UpdateMetric(gomock.Any(), gomock.Any(), gomock.Any()).
 				Return(tt.storageError)
-			s := NewServer(mockStorage)
+			config := &server.ServerConfig{}
+			logger, err := logger.Initialize("info")
+			require.NoError(t, err, "Error init logger")
+			metricService := NewMetricService(mockStorage, logger)
+			s := NewServer(metricService, config, logger)
 
-			handler := http.HandlerFunc(s.UpdateMetricHandler)
+			handler := http.HandlerFunc(s.UpdateMetricHandlerWithPathVars)
 			server := httptest.NewServer(handler)
 			defer server.Close()
 
@@ -94,7 +102,122 @@ func TestUpdateMetricHandler(t *testing.T) {
 	}
 }
 
-func TestGetMetricHandler(t *testing.T) {
+func TestUpdateMetricHandlerWithBody(t *testing.T) {
+	type want struct {
+		code int
+		body string
+	}
+
+	testCases := []struct {
+		name                  string
+		method                string
+		url                   string
+		body                  string
+		useStorage            bool
+		typeMetric            string
+		returnedGaugeMetric   metrics.GaugeMetric
+		returnedCounterMetric metrics.CounterMetric
+		returnedError         error
+		want                  want
+	}{
+		{
+			name:       "should return status code 500 when body contains incorrect json",
+			method:     http.MethodPost,
+			url:        "/update",
+			body:       `{ id: "Alloc" type: "gauge" value: 22.2 }`,
+			useStorage: false,
+			want: want{
+				code: http.StatusBadRequest,
+				body: "Error decode request JSON body\n",
+			},
+		},
+		{
+			name:          "should return status code 400 when body contains invalid metric type",
+			method:        http.MethodPost,
+			url:           "/update",
+			body:          `{ "id": "Alloc", "type": "unknown", "value": 22.2 }`,
+			useStorage:    false,
+			returnedError: nil,
+			want: want{
+				code: http.StatusBadRequest,
+				body: "invalid metric type: unknown\n",
+			},
+		},
+		{
+			name:                "should return status code 200 when body contains valid gauge metric",
+			method:              http.MethodPost,
+			url:                 "/update",
+			body:                `{ "id": "Alloc", "type": "gauge", "value": 22.2}`,
+			useStorage:          true,
+			typeMetric:          "gauge",
+			returnedGaugeMetric: metrics.NewGauge("Alloc", 22.2),
+			returnedError:       nil,
+			want: want{
+				code: http.StatusOK,
+				body: `{"id":"Alloc","type":"gauge","value":22.2}`,
+			},
+		},
+		{
+			name:                  "should return status code 200 when body contains valid counter metric",
+			method:                http.MethodPost,
+			url:                   "/update",
+			body:                  `{ "id": "PoolCount", "type": "counter", "delta": 10}`,
+			useStorage:            true,
+			typeMetric:            "counter",
+			returnedCounterMetric: metrics.NewCounter("PoolCount", 10),
+			returnedError:         nil,
+			want: want{
+				code: http.StatusOK,
+				body: `{"id":"PoolCount","type":"counter","delta":10}`,
+			},
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			mockStorage := NewMockServerStorage(ctrl)
+			if tt.useStorage {
+				if tt.typeMetric == "gauge" {
+					mockStorage.
+						EXPECT().
+						UpdateGaugeMetric(gomock.Any()).
+						Return(tt.returnedGaugeMetric, tt.returnedError)
+				}
+				if tt.typeMetric == "counter" {
+					mockStorage.
+						EXPECT().
+						UpdateCounterMetric(gomock.Any()).
+						Return(tt.returnedCounterMetric, tt.returnedError)
+				}
+			}
+
+			config := &server.ServerConfig{}
+			logger, err := logger.Initialize("info")
+			require.NoError(t, err, "Error init logger")
+			metricService := NewMetricService(mockStorage, logger)
+			s := NewServer(metricService, config, logger)
+
+			handler := http.HandlerFunc(s.UpdateMetricHandlerWithBody)
+			server := httptest.NewServer(handler)
+			defer server.Close()
+
+			req := resty.New().R()
+			req.Method = tt.method
+			req.Body = tt.body
+			req.URL = fmt.Sprintf("%s%s", server.URL, tt.url)
+
+			resp, err := req.Send()
+			require.NoError(t, err, "Error making HTTP request")
+			assert.Equal(t, tt.want.code, resp.StatusCode(), "Response code didn't match expected")
+			assert.Equal(t, tt.want.body, string(resp.Body()))
+		})
+	}
+}
+
+func TestGetMetricHandlerWithPathVars(t *testing.T) {
 	type storageReturnValue struct {
 		value string
 		err   error
@@ -156,14 +279,20 @@ func TestGetMetricHandler(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
 			mockStorage := NewMockServerStorage(ctrl)
 			mockStorage.
 				EXPECT().
 				GetMetricValueByTypeAndName(gomock.Any(), gomock.Any()).
 				Return(tt.storageReturnValue.value, tt.storageReturnValue.err)
-			s := NewServer(mockStorage)
+			config := &server.ServerConfig{}
+			logger, err := logger.Initialize("info")
+			require.NoError(t, err, "Error init logger")
+			metricService := NewMetricService(mockStorage, logger)
+			s := NewServer(metricService, config, logger)
 
-			handler := http.HandlerFunc(s.GetMetricHandler)
+			handler := http.HandlerFunc(s.GetMetricHandlerWithPathVars)
 			server := httptest.NewServer(handler)
 			defer server.Close()
 
@@ -180,10 +309,124 @@ func TestGetMetricHandler(t *testing.T) {
 	}
 }
 
+func TestGetMetricHandlerWithBody(t *testing.T) {
+	type want struct {
+		code int
+		body string
+	}
+
+	testCases := []struct {
+		name                  string
+		method                string
+		url                   string
+		body                  string
+		useStorage            bool
+		metricType            string
+		returnedGaugeMetric   metrics.GaugeMetric
+		returnedCounterMetric metrics.CounterMetric
+		returnedError         error
+		want                  want
+	}{
+		{
+			name:       "should return status code 500 when body contains incorrect json",
+			method:     http.MethodPost,
+			url:        "/value",
+			body:       `{ id: "Alloc" type: "gauge" }`,
+			useStorage: false,
+			want: want{
+				code: http.StatusBadRequest,
+				body: "Error decode request JSON body\n",
+			},
+		},
+		{
+			name:       "should return status code 400 when body contains invalid metric type",
+			method:     http.MethodPost,
+			url:        "/value",
+			body:       `{ "id": "Alloc", "type": "unknown" }`,
+			useStorage: false,
+			want: want{
+				code: http.StatusBadRequest,
+				body: "invalid metric type: unknown\n",
+			},
+		},
+		{
+			name:                "should return status code 200 when body contains valid gauge metric",
+			method:              http.MethodPost,
+			url:                 "/value",
+			body:                `{"id": "Alloc", "type": "gauge"}`,
+			useStorage:          true,
+			metricType:          "gauge",
+			returnedGaugeMetric: metrics.NewGauge("Alloc", 22.2),
+			returnedError:       nil,
+			want: want{
+				code: http.StatusOK,
+				body: `{"id":"Alloc","type":"gauge","value":22.2}`,
+			},
+		},
+		{
+			name:                  "should return status code 200 when body contains valid counter metric",
+			method:                http.MethodPost,
+			url:                   "/value",
+			body:                  `{"id": "PoolCount", "type": "counter"}`,
+			useStorage:            true,
+			metricType:            "counter",
+			returnedCounterMetric: metrics.NewCounter("PoolCount", 10),
+			returnedError:         nil,
+			want: want{
+				code: http.StatusOK,
+				body: `{"id":"PoolCount","type":"counter","delta":10}`,
+			},
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			mockStorage := NewMockServerStorage(ctrl)
+			if tt.useStorage {
+				if tt.metricType == "gauge" {
+					mockStorage.
+						EXPECT().
+						GetGaugeMetric(gomock.Any()).
+						Return(tt.returnedGaugeMetric, tt.returnedError)
+				}
+				if tt.metricType == "counter" {
+					mockStorage.
+						EXPECT().
+						GetCounterMetric(gomock.Any()).
+						Return(tt.returnedCounterMetric, tt.returnedError)
+				}
+			}
+			config := &server.ServerConfig{}
+			logger, err := logger.Initialize("info")
+			require.NoError(t, err, "Error init logger")
+			metricService := NewMetricService(mockStorage, logger)
+			s := NewServer(metricService, config, logger)
+
+			handler := http.HandlerFunc(s.GetMetricHandlerWithBody)
+			server := httptest.NewServer(handler)
+			defer server.Close()
+
+			req := resty.New().R()
+			req.Method = tt.method
+			req.Header.Set("Content-type", "application/json")
+			req.Body = tt.body
+			req.URL = fmt.Sprintf("%s%s", server.URL, tt.url)
+
+			resp, err := req.Send()
+			require.NoError(t, err, "Error making HTTP request")
+			assert.Equal(t, tt.want.code, resp.StatusCode(), "Response code didn't match expected")
+			assert.Equal(t, tt.want.body, string(resp.Body()))
+		})
+	}
+}
+
 func TestGetMetricsHandler(t *testing.T) {
 	type storageReturnValue struct {
-		gauges   map[string]model.GaugeMetric
-		counters map[string]model.CounterMetric
+		gauges   map[string]metrics.GaugeMetric
+		counters map[string]metrics.CounterMetric
 	}
 
 	type want struct {
@@ -203,15 +446,15 @@ func TestGetMetricsHandler(t *testing.T) {
 			method: http.MethodPost,
 			url:    validURL,
 			storageReturnValue: storageReturnValue{
-				gauges: map[string]model.GaugeMetric{
-					"metric1": model.NewGauge("metric1", 1.0),
-					"metric2": model.NewGauge("metric2", 2.0),
-					"metric3": model.NewGauge("metric3", 3.0),
+				gauges: map[string]metrics.GaugeMetric{
+					"metric1": metrics.NewGauge("metric1", 1.0),
+					"metric2": metrics.NewGauge("metric2", 2.0),
+					"metric3": metrics.NewGauge("metric3", 3.0),
 				},
-				counters: map[string]model.CounterMetric{
-					"metric4": model.NewCounter("metric4", 4),
-					"metric5": model.NewCounter("metric5", 5),
-					"metric6": model.NewCounter("metric6", 6),
+				counters: map[string]metrics.CounterMetric{
+					"metric4": metrics.NewCounter("metric4", 4),
+					"metric5": metrics.NewCounter("metric5", 5),
+					"metric6": metrics.NewCounter("metric6", 6),
 				},
 			},
 			want: want{
@@ -224,12 +467,18 @@ func TestGetMetricsHandler(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
 			mockStorage := NewMockServerStorage(ctrl)
 			mockStorage.
 				EXPECT().
 				GetMetrics().
 				Return(tt.storageReturnValue.gauges, tt.storageReturnValue.counters)
-			s := NewServer(mockStorage)
+			config := &server.ServerConfig{}
+			logger, err := logger.Initialize("info")
+			require.NoError(t, err, "Error init logger")
+			metricService := NewMetricService(mockStorage, logger)
+			s := NewServer(metricService, config, logger)
 
 			handler := http.HandlerFunc(s.GetMetricsHandler)
 			server := httptest.NewServer(handler)

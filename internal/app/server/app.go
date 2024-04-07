@@ -2,23 +2,49 @@ package server
 
 import (
 	"net/http"
+	"strings"
 
-	config "github.com/Stern-Ritter/metrics-and-alerting-service/internal/config/server"
+	compress "github.com/Stern-Ritter/metrics-and-alerting-service/internal/compress/server"
 	service "github.com/Stern-Ritter/metrics-and-alerting-service/internal/service/server"
 	"github.com/go-chi/chi"
+	"go.uber.org/zap"
 )
 
 func Run(s *service.Server) error {
-	config, err := getConfig(config.ServerConfig{})
-	if err != nil {
-		return err
+	isFileStorageEnabled := len(strings.TrimSpace(s.Config.StorageFilePath)) != 0
+	if isFileStorageEnabled && s.Config.Restore {
+		if err := s.MetricService.RestoreMetricsFromStorage(s.Config.StorageFilePath); err != nil {
+			s.Logger.Fatal(err.Error(), zap.String("event", "restore storage state from file"))
+			return err
+		}
+		s.Logger.Info("Success", zap.String("event", "restore storage state from file"))
+
+		s.MetricService.SetMetricsSaveInterval(s.Config.StorageFilePath, s.Config.StoreInterval)
 	}
 
-	router := chi.NewRouter()
-	router.Get("/", s.GetMetricsHandler)
-	router.Post("/update/{type}/{name}/{value}", s.UpdateMetricHandler)
-	router.Get("/value/{type}/{name}", s.GetMetricHandler)
-
-	err = http.ListenAndServe(config.URL, router)
+	r := addRoutes(s)
+	err := http.ListenAndServe(s.Config.URL, r)
+	if err != nil {
+		s.Logger.Fatal(err.Error(), zap.String("event", "start server"))
+	}
 	return err
+}
+
+func addRoutes(s *service.Server) *chi.Mux {
+	r := chi.NewRouter()
+	r.Use(s.Logger.LoggerMiddleware)
+	r.Use(compress.GzipMiddleware)
+	r.Get("/", s.GetMetricsHandler)
+
+	r.Route("/update", func(r chi.Router) {
+		r.Post("/", s.UpdateMetricHandlerWithBody)
+		r.Post("/{type}/{name}/{value}", s.UpdateMetricHandlerWithPathVars)
+	})
+
+	r.Route("/value", func(r chi.Router) {
+		r.Post("/", s.GetMetricHandlerWithBody)
+		r.Get("/{type}/{name}", s.GetMetricHandlerWithPathVars)
+	})
+
+	return r
 }

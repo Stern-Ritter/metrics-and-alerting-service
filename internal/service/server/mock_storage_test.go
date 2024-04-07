@@ -12,7 +12,7 @@ package server
 import (
 	reflect "reflect"
 
-	model "github.com/Stern-Ritter/metrics-and-alerting-service/internal/model"
+	metrics "github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -39,6 +39,36 @@ func (m *MockServerStorage) EXPECT() *MockServerStorageMockRecorder {
 	return m.recorder
 }
 
+// GetCounterMetric mocks base method.
+func (m *MockServerStorage) GetCounterMetric(metricName string) (metrics.CounterMetric, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetCounterMetric", metricName)
+	ret0, _ := ret[0].(metrics.CounterMetric)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetCounterMetric indicates an expected call of GetCounterMetric.
+func (mr *MockServerStorageMockRecorder) GetCounterMetric(metricName any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCounterMetric", reflect.TypeOf((*MockServerStorage)(nil).GetCounterMetric), metricName)
+}
+
+// GetGaugeMetric mocks base method.
+func (m *MockServerStorage) GetGaugeMetric(metricName string) (metrics.GaugeMetric, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetGaugeMetric", metricName)
+	ret0, _ := ret[0].(metrics.GaugeMetric)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetGaugeMetric indicates an expected call of GetGaugeMetric.
+func (mr *MockServerStorageMockRecorder) GetGaugeMetric(metricName any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetGaugeMetric", reflect.TypeOf((*MockServerStorage)(nil).GetGaugeMetric), metricName)
+}
+
 // GetMetricValueByTypeAndName mocks base method.
 func (m *MockServerStorage) GetMetricValueByTypeAndName(metricType, metricName string) (string, error) {
 	m.ctrl.T.Helper()
@@ -55,11 +85,11 @@ func (mr *MockServerStorageMockRecorder) GetMetricValueByTypeAndName(metricType,
 }
 
 // GetMetrics mocks base method.
-func (m *MockServerStorage) GetMetrics() (map[string]model.GaugeMetric, map[string]model.CounterMetric) {
+func (m *MockServerStorage) GetMetrics() (map[string]metrics.GaugeMetric, map[string]metrics.CounterMetric) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetMetrics")
-	ret0, _ := ret[0].(map[string]model.GaugeMetric)
-	ret1, _ := ret[1].(map[string]model.CounterMetric)
+	ret0, _ := ret[0].(map[string]metrics.GaugeMetric)
+	ret1, _ := ret[1].(map[string]metrics.CounterMetric)
 	return ret0, ret1
 }
 
@@ -83,12 +113,77 @@ func (mr *MockServerStorageMockRecorder) ResetMetricValue(metricType, metricName
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResetMetricValue", reflect.TypeOf((*MockServerStorage)(nil).ResetMetricValue), metricType, metricName)
 }
 
-// UpdateCounterMetric mocks base method.
-func (m *MockServerStorage) UpdateCounterMetric(metric model.CounterMetric) error {
+// Restore mocks base method.
+func (m *MockServerStorage) Restore(fname string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateCounterMetric", metric)
+	ret := m.ctrl.Call(m, "Restore", fname)
 	ret0, _ := ret[0].(error)
 	return ret0
+}
+
+// Restore indicates an expected call of Restore.
+func (mr *MockServerStorageMockRecorder) Restore(fname any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Restore", reflect.TypeOf((*MockServerStorage)(nil).Restore), fname)
+}
+
+// Save mocks base method.
+func (m *MockServerStorage) Save(fname string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Save", fname)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Save indicates an expected call of Save.
+func (mr *MockServerStorageMockRecorder) Save(fname any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Save", reflect.TypeOf((*MockServerStorage)(nil).Save), fname)
+}
+
+// SetCounterMetrics mocks base method.
+func (m *MockServerStorage) SetCounterMetrics(counters map[string]metrics.CounterMetric) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "SetCounterMetrics", counters)
+}
+
+// SetCounterMetrics indicates an expected call of SetCounterMetrics.
+func (mr *MockServerStorageMockRecorder) SetCounterMetrics(counters any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetCounterMetrics", reflect.TypeOf((*MockServerStorage)(nil).SetCounterMetrics), counters)
+}
+
+// SetGaugeMetircs mocks base method.
+func (m *MockServerStorage) SetGaugeMetircs(gauges map[string]metrics.GaugeMetric) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "SetGaugeMetircs", gauges)
+}
+
+// SetGaugeMetircs indicates an expected call of SetGaugeMetircs.
+func (mr *MockServerStorageMockRecorder) SetGaugeMetircs(gauges any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetGaugeMetircs", reflect.TypeOf((*MockServerStorage)(nil).SetGaugeMetircs), gauges)
+}
+
+// SetSaveInterval mocks base method.
+func (m *MockServerStorage) SetSaveInterval(fname string, interval int) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "SetSaveInterval", fname, interval)
+}
+
+// SetSaveInterval indicates an expected call of SetSaveInterval.
+func (mr *MockServerStorageMockRecorder) SetSaveInterval(fname, interval any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetSaveInterval", reflect.TypeOf((*MockServerStorage)(nil).SetSaveInterval), fname, interval)
+}
+
+// UpdateCounterMetric mocks base method.
+func (m *MockServerStorage) UpdateCounterMetric(metric metrics.CounterMetric) (metrics.CounterMetric, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateCounterMetric", metric)
+	ret0, _ := ret[0].(metrics.CounterMetric)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // UpdateCounterMetric indicates an expected call of UpdateCounterMetric.
@@ -98,11 +193,12 @@ func (mr *MockServerStorageMockRecorder) UpdateCounterMetric(metric any) *gomock
 }
 
 // UpdateGaugeMetric mocks base method.
-func (m *MockServerStorage) UpdateGaugeMetric(metric model.GaugeMetric) error {
+func (m *MockServerStorage) UpdateGaugeMetric(metric metrics.GaugeMetric) (metrics.GaugeMetric, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateGaugeMetric", metric)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret0, _ := ret[0].(metrics.GaugeMetric)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // UpdateGaugeMetric indicates an expected call of UpdateGaugeMetric.

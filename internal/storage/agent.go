@@ -4,64 +4,75 @@ import (
 	"fmt"
 
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
-	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model"
+	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
+	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/monitors"
+	"go.uber.org/zap"
 )
 
 type AgentCache interface {
-	Storage
-	UpdateMonitorMetrics(m *model.Monitor)
+	UpdateGaugeMetric(metric metrics.GaugeMetric) (metrics.GaugeMetric, error)
+	UpdateCounterMetric(metric metrics.CounterMetric) (metrics.CounterMetric, error)
+	UpdateMonitorMetrics(m *monitors.Monitor)
+	ResetMetricValue(metricType, metricName string) error
+	GetMetrics() (map[string]metrics.GaugeMetric, map[string]metrics.CounterMetric)
 }
 
 type AgentMemCache struct {
 	MemStorage
+	Logger *zap.Logger
 }
 
-func NewAgentMemCache(supportedGaugeMetrics map[string]model.GaugeMetric, supportedCounterMetrics map[string]model.CounterMetric) AgentMemCache {
+func NewAgentMemCache(supportedGaugeMetrics map[string]metrics.GaugeMetric,
+	supportedCounterMetrics map[string]metrics.CounterMetric, logger *zap.Logger) AgentMemCache {
 	return AgentMemCache{
 		MemStorage: MemStorage{
 			gauges:   supportedGaugeMetrics,
 			counters: supportedCounterMetrics,
 		},
+		Logger: logger,
 	}
 }
 
-func (c *AgentMemCache) UpdateMonitorMetrics(m *model.Monitor) {
-	c.updateMonitorMetric(model.NewGauge("Alloc", m.Alloc))
-	c.updateMonitorMetric(model.NewGauge("BuckHashSys", m.BuckHashSys))
-	c.updateMonitorMetric(model.NewGauge("Frees", m.Frees))
-	c.updateMonitorMetric(model.NewGauge("GCCPUFraction", m.GCCPUFraction))
-	c.updateMonitorMetric(model.NewGauge("GCSys", m.GCSys))
-	c.updateMonitorMetric(model.NewGauge("HeapAlloc", m.HeapAlloc))
-	c.updateMonitorMetric(model.NewGauge("HeapIdle", m.HeapIdle))
-	c.updateMonitorMetric(model.NewGauge("HeapInuse", m.HeapInuse))
-	c.updateMonitorMetric(model.NewGauge("HeapObjects", m.HeapObjects))
-	c.updateMonitorMetric(model.NewGauge("HeapReleased", m.HeapReleased))
-	c.updateMonitorMetric(model.NewGauge("HeapSys", m.HeapSys))
-	c.updateMonitorMetric(model.NewGauge("LastGC", m.LastGC))
-	c.updateMonitorMetric(model.NewGauge("Lookups", m.Lookups))
-	c.updateMonitorMetric(model.NewGauge("MCacheInuse", m.MCacheInuse))
-	c.updateMonitorMetric(model.NewGauge("MCacheSys", m.MCacheSys))
-	c.updateMonitorMetric(model.NewGauge("MSpanInuse", m.MSpanInuse))
-	c.updateMonitorMetric(model.NewGauge("MSpanSys", m.MSpanSys))
-	c.updateMonitorMetric(model.NewGauge("Mallocs", m.Mallocs))
-	c.updateMonitorMetric(model.NewGauge("NextGC", m.NextGC))
-	c.updateMonitorMetric(model.NewGauge("NumForcedGC", m.NumForcedGC))
-	c.updateMonitorMetric(model.NewGauge("NumGC", m.NumGC))
-	c.updateMonitorMetric(model.NewGauge("OtherSys", m.OtherSys))
-	c.updateMonitorMetric(model.NewGauge("PauseTotalNs", m.PauseTotalNs))
-	c.updateMonitorMetric(model.NewGauge("StackInuse", m.StackInuse))
-	c.updateMonitorMetric(model.NewGauge("StackSys", m.StackSys))
-	c.updateMonitorMetric(model.NewGauge("Sys", m.Sys))
-	c.updateMonitorMetric(model.NewGauge("TotalAlloc", m.TotalAlloc))
+func (c *AgentMemCache) UpdateMonitorMetrics(m *monitors.Monitor) {
+	c.updateMonitorMetric(metrics.NewGauge("Alloc", m.Alloc))
+	c.updateMonitorMetric(metrics.NewGauge("BuckHashSys", m.BuckHashSys))
+	c.updateMonitorMetric(metrics.NewGauge("Frees", m.Frees))
+	c.updateMonitorMetric(metrics.NewGauge("GCCPUFraction", m.GCCPUFraction))
+	c.updateMonitorMetric(metrics.NewGauge("GCSys", m.GCSys))
+	c.updateMonitorMetric(metrics.NewGauge("HeapAlloc", m.HeapAlloc))
+	c.updateMonitorMetric(metrics.NewGauge("HeapIdle", m.HeapIdle))
+	c.updateMonitorMetric(metrics.NewGauge("HeapInuse", m.HeapInuse))
+	c.updateMonitorMetric(metrics.NewGauge("HeapObjects", m.HeapObjects))
+	c.updateMonitorMetric(metrics.NewGauge("HeapReleased", m.HeapReleased))
+	c.updateMonitorMetric(metrics.NewGauge("HeapSys", m.HeapSys))
+	c.updateMonitorMetric(metrics.NewGauge("LastGC", m.LastGC))
+	c.updateMonitorMetric(metrics.NewGauge("Lookups", m.Lookups))
+	c.updateMonitorMetric(metrics.NewGauge("MCacheInuse", m.MCacheInuse))
+	c.updateMonitorMetric(metrics.NewGauge("MCacheSys", m.MCacheSys))
+	c.updateMonitorMetric(metrics.NewGauge("MSpanInuse", m.MSpanInuse))
+	c.updateMonitorMetric(metrics.NewGauge("MSpanSys", m.MSpanSys))
+	c.updateMonitorMetric(metrics.NewGauge("Mallocs", m.Mallocs))
+	c.updateMonitorMetric(metrics.NewGauge("NextGC", m.NextGC))
+	c.updateMonitorMetric(metrics.NewGauge("NumForcedGC", m.NumForcedGC))
+	c.updateMonitorMetric(metrics.NewGauge("NumGC", m.NumGC))
+	c.updateMonitorMetric(metrics.NewGauge("OtherSys", m.OtherSys))
+	c.updateMonitorMetric(metrics.NewGauge("PauseTotalNs", m.PauseTotalNs))
+	c.updateMonitorMetric(metrics.NewGauge("StackInuse", m.StackInuse))
+	c.updateMonitorMetric(metrics.NewGauge("StackSys", m.StackSys))
+	c.updateMonitorMetric(metrics.NewGauge("Sys", m.Sys))
+	c.updateMonitorMetric(metrics.NewGauge("TotalAlloc", m.TotalAlloc))
 }
 
-func (c *AgentMemCache) updateMonitorMetric(metric model.GaugeMetric) {
-	err := c.UpdateGaugeMetric(metric)
-	if err == nil {
-		err := c.UpdateCounterMetric(model.NewCounter("PollCount", 1))
-		if err != nil {
-			fmt.Println(err)
-		}
+func (c *AgentMemCache) updateMonitorMetric(metric metrics.GaugeMetric) {
+	_, err := c.UpdateGaugeMetric(metric)
+	if err != nil {
+		c.Logger.Error(err.Error(), zap.String("event", "update monitor metric"))
+		return
+	}
+
+	_, err = c.UpdateCounterMetric(metrics.NewCounter("PollCount", 1))
+	if err != nil {
+		c.Logger.Error(err.Error(), zap.String("event", "update PollCount counter metric"))
 	}
 }
 

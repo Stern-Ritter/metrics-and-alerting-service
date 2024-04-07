@@ -8,7 +8,7 @@ import (
 	"github.com/caarlos0/env"
 )
 
-func getConfig(c config.AgentConfig) (config.AgentConfig, error) {
+func GetConfig(c config.AgentConfig) (config.AgentConfig, error) {
 	err := parseFlags(&c)
 	if err != nil {
 		return c, err
