@@ -16,31 +16,31 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
-// MockDbStorage is a mock of DbStorage interface.
-type MockDbStorage struct {
+// MockDBStorage is a mock of DBStorage interface.
+type MockDBStorage struct {
 	ctrl     *gomock.Controller
-	recorder *MockDbStorageMockRecorder
+	recorder *MockDBStorageMockRecorder
 }
 
-// MockDbStorageMockRecorder is the mock recorder for MockDbStorage.
-type MockDbStorageMockRecorder struct {
-	mock *MockDbStorage
+// MockDBStorageMockRecorder is the mock recorder for MockDBStorage.
+type MockDBStorageMockRecorder struct {
+	mock *MockDBStorage
 }
 
-// NewMockDbStorage creates a new mock instance.
-func NewMockDbStorage(ctrl *gomock.Controller) *MockDbStorage {
-	mock := &MockDbStorage{ctrl: ctrl}
-	mock.recorder = &MockDbStorageMockRecorder{mock}
+// NewMockDBStorage creates a new mock instance.
+func NewMockDBStorage(ctrl *gomock.Controller) *MockDBStorage {
+	mock := &MockDBStorage{ctrl: ctrl}
+	mock.recorder = &MockDBStorageMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockDbStorage) EXPECT() *MockDbStorageMockRecorder {
+func (m *MockDBStorage) EXPECT() *MockDBStorageMockRecorder {
 	return m.recorder
 }
 
 // Ping mocks base method.
-func (m *MockDbStorage) Ping(ctx context.Context) error {
+func (m *MockDBStorage) Ping(ctx context.Context) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Ping", ctx)
 	ret0, _ := ret[0].(error)
@@ -48,7 +48,7 @@ func (m *MockDbStorage) Ping(ctx context.Context) error {
 }
 
 // Ping indicates an expected call of Ping.
-func (mr *MockDbStorageMockRecorder) Ping(ctx any) *gomock.Call {
+func (mr *MockDBStorageMockRecorder) Ping(ctx any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Ping", reflect.TypeOf((*MockDbStorage)(nil).Ping), ctx)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Ping", reflect.TypeOf((*MockDBStorage)(nil).Ping), ctx)
 }

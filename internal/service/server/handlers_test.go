@@ -74,7 +74,7 @@ func TestUpdateMetricHandlerWithPathVars(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			mockDbStorage := NewMockDbStorage(ctrl)
+			mockDBStorage := NewMockDBStorage(ctrl)
 			mockStorage := NewMockServerStorage(ctrl)
 			mockStorage.
 				EXPECT().
@@ -83,7 +83,7 @@ func TestUpdateMetricHandlerWithPathVars(t *testing.T) {
 			config := &server.ServerConfig{}
 			logger, err := logger.Initialize("info")
 			require.NoError(t, err, "Error init logger")
-			metricService := NewMetricService(mockDbStorage, mockStorage, logger)
+			metricService := NewMetricService(mockDBStorage, mockStorage, logger)
 			s := NewServer(metricService, config, logger)
 
 			handler := http.HandlerFunc(s.UpdateMetricHandlerWithPathVars)
@@ -179,7 +179,7 @@ func TestUpdateMetricHandlerWithBody(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			mockDbStorage := NewMockDbStorage(ctrl)
+			mockDBStorage := NewMockDBStorage(ctrl)
 			mockStorage := NewMockServerStorage(ctrl)
 			if tt.useStorage {
 				if tt.typeMetric == "gauge" {
@@ -199,7 +199,7 @@ func TestUpdateMetricHandlerWithBody(t *testing.T) {
 			config := &server.ServerConfig{}
 			logger, err := logger.Initialize("info")
 			require.NoError(t, err, "Error init logger")
-			metricService := NewMetricService(mockDbStorage, mockStorage, logger)
+			metricService := NewMetricService(mockDBStorage, mockStorage, logger)
 			s := NewServer(metricService, config, logger)
 
 			handler := http.HandlerFunc(s.UpdateMetricHandlerWithBody)
@@ -283,7 +283,7 @@ func TestGetMetricHandlerWithPathVars(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			mockDbStorage := NewMockDbStorage(ctrl)
+			mockDBStorage := NewMockDBStorage(ctrl)
 			mockStorage := NewMockServerStorage(ctrl)
 			mockStorage.
 				EXPECT().
@@ -292,7 +292,7 @@ func TestGetMetricHandlerWithPathVars(t *testing.T) {
 			config := &server.ServerConfig{}
 			logger, err := logger.Initialize("info")
 			require.NoError(t, err, "Error init logger")
-			metricService := NewMetricService(mockDbStorage, mockStorage, logger)
+			metricService := NewMetricService(mockDBStorage, mockStorage, logger)
 			s := NewServer(metricService, config, logger)
 
 			handler := http.HandlerFunc(s.GetMetricHandlerWithPathVars)
@@ -387,7 +387,7 @@ func TestGetMetricHandlerWithBody(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			mockDbStorage := NewMockDbStorage(ctrl)
+			mockDBStorage := NewMockDBStorage(ctrl)
 			mockStorage := NewMockServerStorage(ctrl)
 			if tt.useStorage {
 				if tt.metricType == "gauge" {
@@ -406,7 +406,7 @@ func TestGetMetricHandlerWithBody(t *testing.T) {
 			config := &server.ServerConfig{}
 			logger, err := logger.Initialize("info")
 			require.NoError(t, err, "Error init logger")
-			metricService := NewMetricService(mockDbStorage, mockStorage, logger)
+			metricService := NewMetricService(mockDBStorage, mockStorage, logger)
 			s := NewServer(metricService, config, logger)
 
 			handler := http.HandlerFunc(s.GetMetricHandlerWithBody)
@@ -473,7 +473,7 @@ func TestGetMetricsHandler(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			mockDbStorage := NewMockDbStorage(ctrl)
+			mockDBStorage := NewMockDBStorage(ctrl)
 			mockStorage := NewMockServerStorage(ctrl)
 			mockStorage.
 				EXPECT().
@@ -482,7 +482,7 @@ func TestGetMetricsHandler(t *testing.T) {
 			config := &server.ServerConfig{}
 			logger, err := logger.Initialize("info")
 			require.NoError(t, err, "Error init logger")
-			metricService := NewMetricService(mockDbStorage, mockStorage, logger)
+			metricService := NewMetricService(mockDBStorage, mockStorage, logger)
 			s := NewServer(metricService, config, logger)
 
 			handler := http.HandlerFunc(s.GetMetricsHandler)

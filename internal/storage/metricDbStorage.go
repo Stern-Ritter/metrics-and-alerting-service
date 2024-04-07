@@ -6,7 +6,7 @@ import (
 	"context"
 )
 
-type DbStorage interface {
+type DBStorage interface {
 	Ping(ctx context.Context) error
 }
 

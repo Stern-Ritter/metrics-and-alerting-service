@@ -11,14 +11,14 @@ import (
 )
 
 type MetricService struct {
-	DbStorage storage.DbStorage
+	DBStorage storage.DBStorage
 	Storage   storage.ServerStorage
 	Logger    *logger.ServerLogger
 }
 
-func NewMetricService(dbStorage storage.DbStorage, storage storage.ServerStorage,
+func NewMetricService(dbStorage storage.DBStorage, storage storage.ServerStorage,
 	logger *logger.ServerLogger) *MetricService {
-	return &MetricService{DbStorage: dbStorage, Storage: storage, Logger: logger}
+	return &MetricService{DBStorage: dbStorage, Storage: storage, Logger: logger}
 }
 
 func (s *MetricService) UpdateMetricWithPathVars(metricType string, metricName string,
@@ -121,5 +121,5 @@ func (s *MetricService) SetMetricsSaveInterval(storageFilePath string, storeInte
 }
 
 func (s *MetricService) PingDatabase(ctx context.Context) error {
-	return s.DbStorage.Ping(ctx)
+	return s.DBStorage.Ping(ctx)
 }
