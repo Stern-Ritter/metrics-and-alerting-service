@@ -2,11 +2,13 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
@@ -111,6 +113,19 @@ func (s *Server) GetMetricsHandler(res http.ResponseWriter, req *http.Request) {
 	res.WriteHeader(http.StatusOK)
 }
 
+func (s *Server) PingDatabaseHandler(res http.ResponseWriter, req *http.Request) {
+	ctx, cancel := context.WithTimeout(context.TODO(), time.Second)
+	defer cancel()
+
+	err := s.MetricService.PingDatabase(ctx)
+
+	if err != nil {
+		http.Error(res, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	res.WriteHeader(http.StatusOK)
+}
+
 func getMetricsString(gauges map[string]metrics.GaugeMetric, counters map[string]metrics.CounterMetric) string {
 	metricsNames := make([]string, 0)
 	for _, metric := range gauges {
@@ -126,7 +141,7 @@ func getMetricsString(gauges map[string]metrics.GaugeMetric, counters map[string
 
 func decodeMetrics(source io.ReadCloser) (metrics.Metrics, error) {
 	metric := metrics.Metrics{}
-	buf := new(bytes.Buffer)
+	var buf bytes.Buffer
 	_, err := buf.ReadFrom(source)
 	if err != nil {
 		return metric, err

@@ -27,6 +27,7 @@ func parseFlags(c *config.ServerConfig) error {
 	flag.IntVar(&c.StoreInterval, "i", 300, "interval to store metrics to file in seconds")
 	flag.StringVar(&c.StorageFilePath, "f", "/tmp/metrics-db.json", "metrics storage file path")
 	flag.BoolVar(&c.Restore, "r", true, "will metrics be restored from the file")
+	flag.StringVar(&c.DatabaseDSN, "d", "", "database dsn")
 	flag.Parse()
 	err := utils.ValidateHostnamePort(c.URL)
 

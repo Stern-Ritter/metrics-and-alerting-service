@@ -46,5 +46,7 @@ func addRoutes(s *service.Server) *chi.Mux {
 		r.Get("/{type}/{name}", s.GetMetricHandlerWithPathVars)
 	})
 
+	r.Get("/ping", s.PingDatabaseHandler)
+
 	return r
 }

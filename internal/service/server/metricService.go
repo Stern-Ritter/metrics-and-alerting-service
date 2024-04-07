@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"fmt"
 
 	logger "github.com/Stern-Ritter/metrics-and-alerting-service/internal/logger/server"
@@ -10,12 +11,14 @@ import (
 )
 
 type MetricService struct {
-	Storage storage.ServerStorage
-	Logger  *logger.ServerLogger
+	DbStorage storage.DbStorage
+	Storage   storage.ServerStorage
+	Logger    *logger.ServerLogger
 }
 
-func NewMetricService(storage storage.ServerStorage, logger *logger.ServerLogger) *MetricService {
-	return &MetricService{Storage: storage, Logger: logger}
+func NewMetricService(dbStorage storage.DbStorage, storage storage.ServerStorage,
+	logger *logger.ServerLogger) *MetricService {
+	return &MetricService{DbStorage: dbStorage, Storage: storage, Logger: logger}
 }
 
 func (s *MetricService) UpdateMetricWithPathVars(metricType string, metricName string,
@@ -115,4 +118,8 @@ func (s *MetricService) RestoreMetricsFromStorage(storageFilePath string) error 
 
 func (s *MetricService) SetMetricsSaveInterval(storageFilePath string, storeInterval int) {
 	s.Storage.SetSaveInterval(storageFilePath, storeInterval)
+}
+
+func (s *MetricService) PingDatabase(ctx context.Context) error {
+	return s.DbStorage.Ping(ctx)
 }
