@@ -33,6 +33,7 @@ func (s *DBStorage) UpdateMetric(ctx context.Context, metric metrics.Metrics) er
 	if err != nil {
 		return err
 	}
+	//nolint:errcheck
 	defer tx.Rollback()
 
 	row := s.conn.QueryRowContext(ctx, `
@@ -49,9 +50,9 @@ func (s *DBStorage) UpdateMetric(ctx context.Context, metric metrics.Metrics) er
 		"type": metric.MType,
 	})
 
-	var mId int64
+	var mID int64
 	var mSavedValue float64
-	err = row.Scan(&mId, &mValue)
+	err = row.Scan(&mID, &mValue)
 
 	if err != nil {
 		if !e.Is(err, sql.ErrNoRows) {
@@ -61,9 +62,9 @@ func (s *DBStorage) UpdateMetric(ctx context.Context, metric metrics.Metrics) er
 	} else {
 		switch metrics.MetricType(metric.MType) {
 		case metrics.Gauge:
-			err = updateMetric(ctx, tx, mId, mValue)
+			err = updateMetric(ctx, tx, mID, mValue)
 		case metrics.Counter:
-			err = updateMetric(ctx, tx, mId, mSavedValue+mSavedValue)
+			err = updateMetric(ctx, tx, mID, mSavedValue+mSavedValue)
 		}
 	}
 
@@ -75,7 +76,7 @@ func (s *DBStorage) UpdateMetric(ctx context.Context, metric metrics.Metrics) er
 }
 
 func saveMetric(ctx context.Context, tx *sql.Tx, mName string, mType string, mValue float64) error {
-	mTypeId, err := getMetricTypeId(ctx, tx, mType)
+	mTypeID, err := getMetricTypeID(ctx, tx, mType)
 	if err != nil {
 		return err
 	}
@@ -86,26 +87,26 @@ func saveMetric(ctx context.Context, tx *sql.Tx, mName string, mType string, mVa
 		(@name, @type_id, @value)
 	`, pgx.NamedArgs{
 		"name":    mName,
-		"type_id": mTypeId,
+		"type_id": mTypeID,
 		"value":   mValue,
 	})
 
 	return err
 }
 
-func updateMetric(ctx context.Context, tx *sql.Tx, mId int64, mValue float64) error {
+func updateMetric(ctx context.Context, tx *sql.Tx, mID int64, mValue float64) error {
 	_, err := tx.ExecContext(ctx, `
 		UPDATE metrics
 		SET value = @value WHERE id = @id
 	`, pgx.NamedArgs{
-		"id":    mId,
+		"id":    mID,
 		"value": mValue,
 	})
 
 	return err
 }
 
-func getMetricTypeId(ctx context.Context, tx *sql.Tx, mType string) (int64, error) {
+func getMetricTypeID(ctx context.Context, tx *sql.Tx, mType string) (int64, error) {
 	row := tx.QueryRowContext(ctx, `
 		SELECT
 			id
@@ -113,13 +114,13 @@ func getMetricTypeId(ctx context.Context, tx *sql.Tx, mType string) (int64, erro
 		WHERE name = @type
 	`, pgx.NamedArgs{"type": mType})
 
-	var mTypeId int64
-	err := row.Scan(&mTypeId)
+	var mTypeID int64
+	err := row.Scan(&mTypeID)
 	if err != nil {
 		return 0, errors.NewInvalidMetricType(fmt.Sprintf("Invalid metric type: %s", mType), err)
 	}
 
-	return mTypeId, nil
+	return mTypeID, nil
 }
 
 func (s *DBStorage) GetMetric(ctx context.Context, metric metrics.Metrics) (metrics.Metrics, error) {
