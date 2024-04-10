@@ -1,11 +1,10 @@
 package server
 
 import (
+	"context"
 	"database/sql"
 	"log"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
 
 	compress "github.com/Stern-Ritter/metrics-and-alerting-service/internal/compress/server"
@@ -31,11 +30,7 @@ func Run(config *config.ServerConfig, logger *logger.ServerLogger) error {
 		defer conn.Close()
 
 		dbStorage := storage.NewDBStorage(conn, logger)
-		appPath, err := os.Getwd()
-		if err != nil {
-			return err
-		}
-		err = dbStorage.InitDatabase(filepath.Join(appPath, "/resources/database/sсhema.sql"))
+		err = dbStorage.Bootstrap(context.TODO())
 		if err != nil {
 			log.Fatal(err.Error(), zap.String("event", "init database schema"))
 			return err

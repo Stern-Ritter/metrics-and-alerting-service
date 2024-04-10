@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	e "errors"
 	"fmt"
-	"os"
 
 	"context"
 
@@ -21,6 +20,70 @@ type DBStorage struct {
 
 func NewDBStorage(conn *sql.DB, logger *logger.ServerLogger) *DBStorage {
 	return &DBStorage{conn: conn, Logger: logger}
+}
+
+func (s *DBStorage) Bootstrap(ctx context.Context) error {
+	tx, err := s.conn.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	//nolint:errcheck
+	defer tx.Rollback()
+
+	_, err = tx.ExecContext(ctx, `
+		DROP TABLE metrics;
+		DROP TABLE metric_types;
+    `)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.ExecContext(ctx, `
+		CREATE TABLE metric_types (
+			id SERIAL PRIMARY KEY,
+			name VARCHAR(256) NOT NULL
+		);
+	`)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.ExecContext(ctx, `
+		CREATE UNIQUE INDEX metric_type_name_idx ON metric_types (name);
+	`)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.ExecContext(ctx, `
+		CREATE TABLE metrics (
+			id BIGSERIAL PRIMARY KEY,
+			name VARCHAR(256) NOT NULL,
+			type_id INTEGER NOT NULL,
+			value DOUBLE PRECISION NOT NULL,
+			FOREIGN KEY (type_id) REFERENCES metric_types (id)
+		);
+	`)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.ExecContext(ctx, `
+		CREATE INDEX metric_name_idx ON metrics (name);
+	`)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.ExecContext(ctx, `
+		INSERT INTO metric_types (name) VALUES ('gauge'), ('counter');
+	`)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
 }
 
 func (s *DBStorage) UpdateMetric(ctx context.Context, metric metrics.Metrics) error {
@@ -216,15 +279,4 @@ func (s *DBStorage) Restore(fname string) error {
 
 func (s *DBStorage) Save(fname string) error {
 	return fmt.Errorf("can not save database storage state to file")
-}
-
-func (s *DBStorage) InitDatabase(initScriptPath string) error {
-	data, err := os.ReadFile(initScriptPath)
-	if err != nil {
-		return err
-	}
-
-	initScript := string(data)
-	_, err = s.conn.Exec(initScript)
-	return err
 }
