@@ -32,8 +32,8 @@ func (s *DBStorage) Bootstrap(ctx context.Context) error {
 	defer tx.Rollback()
 
 	_, err = tx.ExecContext(ctx, `
-		DROP TABLE metrics;
-		DROP TABLE metric_types;
+		DROP TABLE IF EXISTS metrics;
+		DROP TABLE IF EXISTS metric_types;
     `)
 	if err != nil {
 		return err

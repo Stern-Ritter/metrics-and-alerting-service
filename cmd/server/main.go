@@ -7,8 +7,6 @@ import (
 	config "github.com/Stern-Ritter/metrics-and-alerting-service/internal/config/server"
 	logger "github.com/Stern-Ritter/metrics-and-alerting-service/internal/logger/server"
 	"go.uber.org/zap"
-
-	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 func main() {
