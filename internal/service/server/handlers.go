@@ -16,12 +16,12 @@ import (
 )
 
 func (s *Server) UpdateMetricHandlerWithPathVars(res http.ResponseWriter, req *http.Request) {
-	metricType := chi.URLParam(req, "type")
-	metricName := chi.URLParam(req, "name")
-	metricValue := chi.URLParam(req, "value")
+	mName := chi.URLParam(req, "name")
+	mType := chi.URLParam(req, "type")
+	mValue := chi.URLParam(req, "value")
 
-	err := s.MetricService.UpdateMetricWithPathVars(metricType, metricName, metricValue, s.isSyncSaveStorageState(),
-		s.Config.StorageFilePath)
+	err := s.MetricService.UpdateMetricWithPathVars(req.Context(), mName, mType, mValue,
+		s.isSyncSaveStorageState(), s.Config.StorageFilePath)
 
 	switch err.(type) {
 	case errors.InvalidMetricType, errors.InvalidMetricValue:
@@ -39,7 +39,7 @@ func (s *Server) UpdateMetricHandlerWithBody(res http.ResponseWriter, req *http.
 		return
 	}
 
-	updatedMetric, err := s.MetricService.UpdateMetricWithBody(metric, s.isSyncSaveStorageState(),
+	updatedMetric, err := s.MetricService.UpdateMetricWithBody(req.Context(), metric, s.isSyncSaveStorageState(),
 		s.Config.StorageFilePath)
 	if err != nil {
 		http.Error(res, err.Error(), http.StatusBadRequest)
@@ -61,8 +61,7 @@ func (s *Server) GetMetricHandlerWithPathVars(res http.ResponseWriter, req *http
 	metricType := chi.URLParam(req, "type")
 	metricName := chi.URLParam(req, "name")
 
-	value, err := s.MetricService.GetMetricValueByTypeAndName(metricType, metricName)
-
+	value, err := s.MetricService.GetMetricValueByTypeAndName(req.Context(), metricType, metricName)
 	switch err.(type) {
 	case errors.InvalidMetricType, errors.InvalidMetricName:
 		http.Error(res, err.Error(), http.StatusNotFound)
@@ -84,9 +83,11 @@ func (s *Server) GetMetricHandlerWithBody(res http.ResponseWriter, req *http.Req
 		return
 	}
 
-	metric, err = s.MetricService.GetMetricHandlerWithBody(metric)
-	if err != nil {
-		http.Error(res, err.Error(), http.StatusBadRequest)
+	metric, err = s.MetricService.GetMetricHandlerWithBody(req.Context(), metric)
+
+	switch err.(type) {
+	case errors.InvalidMetricType, errors.InvalidMetricName:
+		http.Error(res, err.Error(), http.StatusNotFound)
 		return
 	}
 
@@ -102,11 +103,15 @@ func (s *Server) GetMetricHandlerWithBody(res http.ResponseWriter, req *http.Req
 }
 
 func (s *Server) GetMetricsHandler(res http.ResponseWriter, req *http.Request) {
-	gauges, counters := s.MetricService.GetMetrics()
+	gauges, counters, err := s.MetricService.GetMetrics(req.Context())
+	if err != nil {
+		http.Error(res, err.Error(), http.StatusInternalServerError)
+	}
+
 	body := getMetricsString(gauges, counters)
 
 	res.Header().Set("Content-type", "text/html")
-	_, err := io.WriteString(res, body)
+	_, err = io.WriteString(res, body)
 	if err != nil {
 		http.Error(res, err.Error(), http.StatusInternalServerError)
 	}
@@ -114,7 +119,7 @@ func (s *Server) GetMetricsHandler(res http.ResponseWriter, req *http.Request) {
 }
 
 func (s *Server) PingDatabaseHandler(res http.ResponseWriter, req *http.Request) {
-	ctx, cancel := context.WithTimeout(context.TODO(), time.Second)
+	ctx, cancel := context.WithTimeout(req.Context(), time.Second)
 	defer cancel()
 
 	err := s.MetricService.PingDatabase(ctx)

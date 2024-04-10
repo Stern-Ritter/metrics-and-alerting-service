@@ -1,7 +1,9 @@
 package server
 
 import (
+	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,18 +12,24 @@ import (
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
 	logger "github.com/Stern-Ritter/metrics-and-alerting-service/internal/logger/server"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
+	"github.com/go-chi/chi"
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/mock/gomock"
+	gomock "go.uber.org/mock/gomock"
 )
 
-const (
-	validURL                    = "/update/counter/name/2.0"
-	invalidMetricTypeURL        = "/update/invalidType/name/2.0"
-	invalidMetricValueURL       = "/update/counter/name/two"
-	invalidMetricTypeErrorText  = "Storage error text for invalid metric type"
-	invalidMetricValueErrorText = "Storage error text for invalid metric value"
+func addURLParams(req *http.Request, params map[string]string) *http.Request {
+	ctx := chi.NewRouteContext()
+	for k, v := range params {
+		ctx.URLParams.Add(k, v)
+	}
+	return req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, ctx))
+}
+
+var (
+	gaugeInitValue   float64 = 22.2
+	counterInitValue int64   = 10
 )
 
 func TestUpdateMetricHandlerWithPathVars(t *testing.T) {
@@ -31,37 +39,53 @@ func TestUpdateMetricHandlerWithPathVars(t *testing.T) {
 	}
 
 	testCases := []struct {
-		name         string
-		method       string
-		url          string
-		storageError error
-		want         want
+		name       string
+		method     string
+		url        string
+		pathParams map[string]string
+		useStorage bool
+		want       want
 	}{
 		{
-			name:         "should retrun status code 400 when url contains invalid metric type",
-			method:       http.MethodPost,
-			url:          invalidMetricTypeURL,
-			storageError: errors.NewInvalidMetricType(invalidMetricTypeErrorText, nil),
+			name:   "should retrun status code 400 when url contains invalid metric type",
+			method: http.MethodPost,
+			url:    "/update",
+			pathParams: map[string]string{
+				"type":  "invalid",
+				"name":  "simple",
+				"value": "2.0",
+			},
+			useStorage: false,
 			want: want{
 				code: http.StatusBadRequest,
-				body: fmt.Sprintf("%s\n", invalidMetricTypeErrorText),
+				body: "Invalid metric type: invalid\n",
 			},
 		},
 		{
-			name:         "should retrun status code 400 when url contains invalid metric value",
-			method:       http.MethodPost,
-			url:          invalidMetricValueURL,
-			storageError: errors.NewInvalidMetricValue(invalidMetricValueErrorText, nil),
+			name:   "should retrun status code 400 when url contains invalid metric value",
+			method: http.MethodPost,
+			url:    "/update",
+			pathParams: map[string]string{
+				"type":  "gauge",
+				"name":  "simple",
+				"value": "two",
+			},
+			useStorage: false,
 			want: want{
 				code: http.StatusBadRequest,
-				body: fmt.Sprintf("%s\n", invalidMetricValueErrorText),
+				body: "The value for the gauge metric should be of float64 type\n",
 			},
 		},
 		{
-			name:         "should retrun status code 200 when url contains valid metric type and value",
-			method:       http.MethodPost,
-			url:          validURL,
-			storageError: nil,
+			name:   "should retrun status code 200 when url contains valid metric type and value",
+			method: http.MethodPost,
+			url:    "/update",
+			pathParams: map[string]string{
+				"type":  "gauge",
+				"name":  "simple",
+				"value": "2.0",
+			},
+			useStorage: true,
 			want: want{
 				code: http.StatusOK,
 				body: "",
@@ -74,31 +98,36 @@ func TestUpdateMetricHandlerWithPathVars(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			mockDBStorage := NewMockDBStorage(ctrl)
-			mockStorage := NewMockServerStorage(ctrl)
-			mockStorage.
-				EXPECT().
-				UpdateMetric(gomock.Any(), gomock.Any(), gomock.Any()).
-				Return(tt.storageError)
+			mockStorage := NewMockStorage(ctrl)
+			if tt.useStorage {
+				mockStorage.
+					EXPECT().
+					UpdateMetric(gomock.Any(), gomock.Any()).
+					Return(nil)
+			}
 			config := &server.ServerConfig{}
 			logger, err := logger.Initialize("info")
 			require.NoError(t, err, "Error init logger")
-			metricService := NewMetricService(mockDBStorage, mockStorage, logger)
+			metricService := NewMetricService(mockStorage, logger)
 			s := NewServer(metricService, config, logger)
 
 			handler := http.HandlerFunc(s.UpdateMetricHandlerWithPathVars)
-			server := httptest.NewServer(handler)
-			defer server.Close()
 
-			req := resty.New().R()
-			req.Method = tt.method
-			req.URL = fmt.Sprintf("%s%s", server.URL, tt.url)
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest(tt.method, tt.url, nil)
+			req = addURLParams(req, tt.pathParams)
+			handler.ServeHTTP(w, req)
 
-			resp, err := req.Send()
+			resp := w.Result()
+			defer resp.Body.Close()
 
 			require.NoError(t, err, "Error making HTTP request")
-			assert.Equal(t, tt.want.code, resp.StatusCode(), "Response code didn't match expected")
-			assert.Equal(t, tt.want.body, string(resp.Body()))
+			assert.Equal(t, tt.want.code, resp.StatusCode, "Response code didn't match expected")
+			if tt.want.body != "" {
+				body, err := io.ReadAll(resp.Body)
+				require.NoError(t, err)
+				require.Equal(t, tt.want.body, string(body))
+			}
 		})
 	}
 }
@@ -110,63 +139,63 @@ func TestUpdateMetricHandlerWithBody(t *testing.T) {
 	}
 
 	testCases := []struct {
-		name                  string
-		method                string
-		url                   string
-		body                  string
-		useStorage            bool
-		typeMetric            string
-		returnedGaugeMetric   metrics.GaugeMetric
-		returnedCounterMetric metrics.CounterMetric
-		returnedError         error
-		want                  want
+		name                     string
+		method                   string
+		url                      string
+		body                     string
+		useStorageUpdateMetric   bool
+		storageUpdateMetricError error
+		useStorageGetMetric      bool
+		metric                   metrics.Metrics
+		storageGetMetricError    error
+		want                     want
 	}{
 		{
-			name:       "should return status code 500 when body contains incorrect json",
-			method:     http.MethodPost,
-			url:        "/update",
-			body:       `{ id: "Alloc" type: "gauge" value: 22.2 }`,
-			useStorage: false,
+			name:                   "should return status code 500 when body contains incorrect json",
+			method:                 http.MethodPost,
+			url:                    "/update",
+			body:                   `{ id: "Alloc" type: "gauge" value: 22.2 }`,
+			useStorageUpdateMetric: false,
+			useStorageGetMetric:    false,
 			want: want{
 				code: http.StatusBadRequest,
 				body: "Error decode request JSON body\n",
 			},
 		},
 		{
-			name:          "should return status code 400 when body contains invalid metric type",
-			method:        http.MethodPost,
-			url:           "/update",
-			body:          `{ "id": "Alloc", "type": "unknown", "value": 22.2 }`,
-			useStorage:    false,
-			returnedError: nil,
+			name:                     "should return status code 400 when body contains invalid metric type",
+			method:                   http.MethodPost,
+			url:                      "/update",
+			body:                     `{ "id": "Alloc", "type": "unknown", "value": 22.2 }`,
+			useStorageUpdateMetric:   true,
+			storageUpdateMetricError: errors.NewInvalidMetricType("Invalid metric type: unknown", nil),
+			useStorageGetMetric:      false,
 			want: want{
 				code: http.StatusBadRequest,
-				body: "invalid metric type: unknown\n",
+				body: "Invalid metric type: unknown\n",
 			},
 		},
 		{
-			name:                "should return status code 200 when body contains valid gauge metric",
-			method:              http.MethodPost,
-			url:                 "/update",
-			body:                `{ "id": "Alloc", "type": "gauge", "value": 22.2}`,
-			useStorage:          true,
-			typeMetric:          "gauge",
-			returnedGaugeMetric: metrics.NewGauge("Alloc", 22.2),
-			returnedError:       nil,
+			name:                   "should return status code 200 when body contains valid gauge metric",
+			method:                 http.MethodPost,
+			url:                    "/update",
+			body:                   `{ "id": "Alloc", "type": "gauge", "value": 22.2}`,
+			useStorageUpdateMetric: true,
+			useStorageGetMetric:    true,
+			metric:                 metrics.Metrics{ID: "Alloc", MType: "gauge", Value: &gaugeInitValue},
 			want: want{
 				code: http.StatusOK,
 				body: `{"id":"Alloc","type":"gauge","value":22.2}`,
 			},
 		},
 		{
-			name:                  "should return status code 200 when body contains valid counter metric",
-			method:                http.MethodPost,
-			url:                   "/update",
-			body:                  `{ "id": "PoolCount", "type": "counter", "delta": 10}`,
-			useStorage:            true,
-			typeMetric:            "counter",
-			returnedCounterMetric: metrics.NewCounter("PoolCount", 10),
-			returnedError:         nil,
+			name:                   "should return status code 200 when body contains valid counter metric",
+			method:                 http.MethodPost,
+			url:                    "/update",
+			body:                   `{ "id": "PoolCount", "type": "counter", "delta": 10}`,
+			useStorageUpdateMetric: true,
+			useStorageGetMetric:    true,
+			metric:                 metrics.Metrics{ID: "PoolCount", MType: "counter", Delta: &counterInitValue},
 			want: want{
 				code: http.StatusOK,
 				body: `{"id":"PoolCount","type":"counter","delta":10}`,
@@ -179,27 +208,24 @@ func TestUpdateMetricHandlerWithBody(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			mockDBStorage := NewMockDBStorage(ctrl)
-			mockStorage := NewMockServerStorage(ctrl)
-			if tt.useStorage {
-				if tt.typeMetric == "gauge" {
-					mockStorage.
-						EXPECT().
-						UpdateGaugeMetric(gomock.Any()).
-						Return(tt.returnedGaugeMetric, tt.returnedError)
-				}
-				if tt.typeMetric == "counter" {
-					mockStorage.
-						EXPECT().
-						UpdateCounterMetric(gomock.Any()).
-						Return(tt.returnedCounterMetric, tt.returnedError)
-				}
+			mockStorage := NewMockStorage(ctrl)
+			if tt.useStorageUpdateMetric {
+				mockStorage.
+					EXPECT().
+					UpdateMetric(gomock.Any(), gomock.Any()).
+					Return(tt.storageUpdateMetricError)
+			}
+			if tt.useStorageGetMetric {
+				mockStorage.
+					EXPECT().
+					GetMetric(gomock.Any(), gomock.Any()).
+					Return(tt.metric, tt.storageGetMetricError)
 			}
 
 			config := &server.ServerConfig{}
 			logger, err := logger.Initialize("info")
 			require.NoError(t, err, "Error init logger")
-			metricService := NewMetricService(mockDBStorage, mockStorage, logger)
+			metricService := NewMetricService(mockStorage, logger)
 			s := NewServer(metricService, config, logger)
 
 			handler := http.HandlerFunc(s.UpdateMetricHandlerWithBody)
@@ -220,60 +246,50 @@ func TestUpdateMetricHandlerWithBody(t *testing.T) {
 }
 
 func TestGetMetricHandlerWithPathVars(t *testing.T) {
-	type storageReturnValue struct {
-		value string
-		err   error
-	}
-
 	type want struct {
 		code int
 		body string
 	}
 
 	testCases := []struct {
-		name               string
-		method             string
-		url                string
-		storageReturnValue storageReturnValue
-		want               want
+		name                  string
+		method                string
+		url                   string
+		metric                metrics.Metrics
+		storageGetMetricError error
+		want                  want
 	}{
 		{
-			name:   "should retrun status code 404 when url contains not existing metric type",
-			method: http.MethodPost,
-			url:    invalidMetricTypeURL,
-			storageReturnValue: storageReturnValue{
-				value: "",
-				err:   errors.NewInvalidMetricType(invalidMetricTypeErrorText, nil),
-			},
+			name:                  "should retrun status code 404 when url contains not existing metric type",
+			method:                http.MethodPost,
+			url:                   "/update",
+			metric:                metrics.Metrics{},
+			storageGetMetricError: errors.NewInvalidMetricType("Invalid metric type: unknown", nil),
 			want: want{
 				code: http.StatusNotFound,
-				body: fmt.Sprintf("%s\n", invalidMetricTypeErrorText),
+				body: "Invalid metric type: unknown\n",
 			},
 		},
 		{
-			name:   "should retrun status code 404 when url contains not existing metric name",
-			method: http.MethodPost,
-			url:    invalidMetricValueURL,
-			storageReturnValue: storageReturnValue{
-				value: "",
-				err:   errors.NewInvalidMetricName(invalidMetricValueErrorText, nil),
-			},
+			name:                  "should retrun status code 404 when url contains not existing metric name",
+			method:                http.MethodPost,
+			url:                   "/update",
+			metric:                metrics.Metrics{},
+			storageGetMetricError: errors.NewInvalidMetricName("Gauge metric with name: unknown not exists", nil),
 			want: want{
 				code: http.StatusNotFound,
-				body: fmt.Sprintf("%s\n", invalidMetricValueErrorText),
+				body: "Gauge metric with name: unknown not exists\n",
 			},
 		},
 		{
-			name:   "should retrun status code 200 when contains existing metric type and value",
-			method: http.MethodPost,
-			url:    validURL,
-			storageReturnValue: storageReturnValue{
-				value: "1",
-				err:   nil,
-			},
+			name:                  "should retrun status code 200 when contains existing metric type and value",
+			method:                http.MethodPost,
+			url:                   "/update",
+			metric:                metrics.Metrics{ID: "PoolCounter", MType: "counter", Delta: &counterInitValue},
+			storageGetMetricError: nil,
 			want: want{
 				code: http.StatusOK,
-				body: "1",
+				body: "10",
 			},
 		},
 	}
@@ -283,16 +299,15 @@ func TestGetMetricHandlerWithPathVars(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			mockDBStorage := NewMockDBStorage(ctrl)
-			mockStorage := NewMockServerStorage(ctrl)
+			mockStorage := NewMockStorage(ctrl)
 			mockStorage.
 				EXPECT().
-				GetMetricValueByTypeAndName(gomock.Any(), gomock.Any()).
-				Return(tt.storageReturnValue.value, tt.storageReturnValue.err)
+				GetMetric(gomock.Any(), gomock.Any()).
+				Return(tt.metric, tt.storageGetMetricError)
 			config := &server.ServerConfig{}
 			logger, err := logger.Initialize("info")
 			require.NoError(t, err, "Error init logger")
-			metricService := NewMetricService(mockDBStorage, mockStorage, logger)
+			metricService := NewMetricService(mockStorage, logger)
 			s := NewServer(metricService, config, logger)
 
 			handler := http.HandlerFunc(s.GetMetricHandlerWithPathVars)
@@ -324,10 +339,8 @@ func TestGetMetricHandlerWithBody(t *testing.T) {
 		url                   string
 		body                  string
 		useStorage            bool
-		metricType            string
-		returnedGaugeMetric   metrics.GaugeMetric
-		returnedCounterMetric metrics.CounterMetric
-		returnedError         error
+		metric                metrics.Metrics
+		storageGetMetricError error
 		want                  want
 	}{
 		{
@@ -342,39 +355,37 @@ func TestGetMetricHandlerWithBody(t *testing.T) {
 			},
 		},
 		{
-			name:       "should return status code 400 when body contains invalid metric type",
-			method:     http.MethodPost,
-			url:        "/value",
-			body:       `{ "id": "Alloc", "type": "unknown" }`,
-			useStorage: false,
+			name:                  "should return status code 400 when body contains not existing metric type",
+			method:                http.MethodPost,
+			url:                   "/value",
+			body:                  `{ "id": "Alloc", "type": "unknown" }`,
+			useStorage:            true,
+			metric:                metrics.Metrics{},
+			storageGetMetricError: errors.NewInvalidMetricType("Invalid metric type: unknown", nil),
 			want: want{
-				code: http.StatusBadRequest,
-				body: "invalid metric type: unknown\n",
+				code: http.StatusNotFound,
+				body: "Invalid metric type: unknown\n",
 			},
 		},
 		{
-			name:                "should return status code 200 when body contains valid gauge metric",
-			method:              http.MethodPost,
-			url:                 "/value",
-			body:                `{"id": "Alloc", "type": "gauge"}`,
-			useStorage:          true,
-			metricType:          "gauge",
-			returnedGaugeMetric: metrics.NewGauge("Alloc", 22.2),
-			returnedError:       nil,
+			name:       "should return status code 200 when body contains valid gauge metric",
+			method:     http.MethodPost,
+			url:        "/value",
+			body:       `{"id": "Alloc", "type": "gauge"}`,
+			useStorage: true,
+			metric:     metrics.Metrics{ID: "Alloc", MType: "gauge", Value: &gaugeInitValue},
 			want: want{
 				code: http.StatusOK,
 				body: `{"id":"Alloc","type":"gauge","value":22.2}`,
 			},
 		},
 		{
-			name:                  "should return status code 200 when body contains valid counter metric",
-			method:                http.MethodPost,
-			url:                   "/value",
-			body:                  `{"id": "PoolCount", "type": "counter"}`,
-			useStorage:            true,
-			metricType:            "counter",
-			returnedCounterMetric: metrics.NewCounter("PoolCount", 10),
-			returnedError:         nil,
+			name:       "should return status code 200 when body contains valid counter metric",
+			method:     http.MethodPost,
+			url:        "/value",
+			body:       `{"id": "PoolCount", "type": "counter"}`,
+			useStorage: true,
+			metric:     metrics.Metrics{ID: "PoolCount", MType: "counter", Delta: &counterInitValue},
 			want: want{
 				code: http.StatusOK,
 				body: `{"id":"PoolCount","type":"counter","delta":10}`,
@@ -387,26 +398,17 @@ func TestGetMetricHandlerWithBody(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			mockDBStorage := NewMockDBStorage(ctrl)
-			mockStorage := NewMockServerStorage(ctrl)
+			mockStorage := NewMockStorage(ctrl)
 			if tt.useStorage {
-				if tt.metricType == "gauge" {
-					mockStorage.
-						EXPECT().
-						GetGaugeMetric(gomock.Any()).
-						Return(tt.returnedGaugeMetric, tt.returnedError)
-				}
-				if tt.metricType == "counter" {
-					mockStorage.
-						EXPECT().
-						GetCounterMetric(gomock.Any()).
-						Return(tt.returnedCounterMetric, tt.returnedError)
-				}
+				mockStorage.
+					EXPECT().
+					GetMetric(gomock.Any(), gomock.Any()).
+					Return(tt.metric, tt.storageGetMetricError)
 			}
 			config := &server.ServerConfig{}
 			logger, err := logger.Initialize("info")
 			require.NoError(t, err, "Error init logger")
-			metricService := NewMetricService(mockDBStorage, mockStorage, logger)
+			metricService := NewMetricService(mockStorage, logger)
 			s := NewServer(metricService, config, logger)
 
 			handler := http.HandlerFunc(s.GetMetricHandlerWithBody)
@@ -448,7 +450,7 @@ func TestGetMetricsHandler(t *testing.T) {
 		{
 			name:   "should retrun status code 200 when contains existing metric type and value",
 			method: http.MethodPost,
-			url:    validURL,
+			url:    "/",
 			storageReturnValue: storageReturnValue{
 				gauges: map[string]metrics.GaugeMetric{
 					"metric1": metrics.NewGauge("metric1", 1.0),
@@ -473,16 +475,15 @@ func TestGetMetricsHandler(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			mockDBStorage := NewMockDBStorage(ctrl)
-			mockStorage := NewMockServerStorage(ctrl)
+			mockStorage := NewMockStorage(ctrl)
 			mockStorage.
 				EXPECT().
-				GetMetrics().
-				Return(tt.storageReturnValue.gauges, tt.storageReturnValue.counters)
+				GetMetrics(gomock.Any()).
+				Return(tt.storageReturnValue.gauges, tt.storageReturnValue.counters, nil)
 			config := &server.ServerConfig{}
 			logger, err := logger.Initialize("info")
 			require.NoError(t, err, "Error init logger")
-			metricService := NewMetricService(mockDBStorage, mockStorage, logger)
+			metricService := NewMetricService(mockStorage, logger)
 			s := NewServer(metricService, config, logger)
 
 			handler := http.HandlerFunc(s.GetMetricsHandler)

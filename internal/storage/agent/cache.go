@@ -2,10 +2,12 @@ package storage
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/monitors"
+	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/utils"
 	"go.uber.org/zap"
 )
 
@@ -18,19 +20,99 @@ type AgentCache interface {
 }
 
 type AgentMemCache struct {
-	MemStorage
+	gaugesMu   sync.Mutex
+	countersMu sync.Mutex
+
+	gauges   map[string]metrics.GaugeMetric
+	counters map[string]metrics.CounterMetric
+
 	Logger *zap.Logger
 }
 
-func NewAgentMemCache(supportedGaugeMetrics map[string]metrics.GaugeMetric,
-	supportedCounterMetrics map[string]metrics.CounterMetric, logger *zap.Logger) AgentMemCache {
+func NewAgentMemCache(supportedGaugeMetrics map[string]metrics.GaugeMetric, supportedCounterMetrics map[string]metrics.CounterMetric,
+	logger *zap.Logger) AgentMemCache {
 	return AgentMemCache{
-		MemStorage: MemStorage{
-			gauges:   supportedGaugeMetrics,
-			counters: supportedCounterMetrics,
-		},
-		Logger: logger,
+		gauges:   supportedGaugeMetrics,
+		counters: supportedCounterMetrics,
+		Logger:   logger,
 	}
+}
+
+func (c *AgentMemCache) UpdateGaugeMetric(metric metrics.GaugeMetric) (metrics.GaugeMetric, error) {
+	c.gaugesMu.Lock()
+	defer c.gaugesMu.Unlock()
+
+	err := c.checkGaugeMetricNameWhenUpdate(metric.Name)
+	if err != nil {
+		return metrics.GaugeMetric{}, err
+	}
+
+	if savedMetric, exists := c.gauges[metric.Name]; exists {
+		savedMetric.SetValue(metric.GetValue())
+		c.gauges[metric.Name] = savedMetric
+	} else {
+		c.gauges[metric.Name] = metric
+	}
+
+	return c.gauges[metric.Name], nil
+}
+
+func (c *AgentMemCache) UpdateCounterMetric(metric metrics.CounterMetric) (metrics.CounterMetric, error) {
+	c.countersMu.Lock()
+	defer c.countersMu.Unlock()
+
+	err := c.checkCounterMetricNameWhenUpdate(metric.Name)
+	if err != nil {
+		return metrics.CounterMetric{}, err
+	}
+
+	if savedMetric, exists := c.counters[metric.Name]; exists {
+		savedMetric.SetValue(metric.GetValue())
+		c.counters[metric.Name] = savedMetric
+	} else {
+		c.counters[metric.Name] = metric
+	}
+
+	return c.counters[metric.Name], nil
+}
+
+func (c *AgentMemCache) ResetMetricValue(metricType, metricName string) error {
+	switch metrics.MetricType(metricType) {
+	case metrics.Gauge:
+		err := c.checkGaugeMetricNameWhenReset(metricName)
+		if err != nil {
+			return err
+		}
+
+		savedMetric := c.gauges[metricName]
+		savedMetric.SetValue(0)
+		c.gauges[savedMetric.Name] = savedMetric
+	case metrics.Counter:
+		err := c.checkCounterMetricNameWhenReset(metricName)
+		if err != nil {
+			return err
+		}
+
+		savedMetric := c.counters[metricName]
+		savedMetric.ClearValue()
+		c.counters[savedMetric.Name] = savedMetric
+
+	default:
+		return errors.NewInvalidMetricType(fmt.Sprintf("Invalid metric type: %s", metricType), nil)
+	}
+	return nil
+}
+
+func (c *AgentMemCache) GetMetrics() (map[string]metrics.GaugeMetric, map[string]metrics.CounterMetric) {
+	c.gaugesMu.Lock()
+	gauges := utils.CopyMap(c.gauges)
+	c.gaugesMu.Unlock()
+
+	c.countersMu.Lock()
+	counters := utils.CopyMap(c.counters)
+	c.countersMu.Unlock()
+
+	return gauges, counters
 }
 
 func (c *AgentMemCache) UpdateMonitorMetrics(m *monitors.Monitor) {
@@ -76,7 +158,7 @@ func (c *AgentMemCache) updateMonitorMetric(metric metrics.GaugeMetric) {
 	}
 }
 
-func (c *AgentMemCache) CheckGaugeMetricNameWhenUpdate(name string) error {
+func (c *AgentMemCache) checkGaugeMetricNameWhenUpdate(name string) error {
 	_, exists := c.gauges[name]
 	if !exists {
 		return errors.NewInvalidMetricName(fmt.Sprintf("Invalid metric name: %s", name), nil)
@@ -84,10 +166,28 @@ func (c *AgentMemCache) CheckGaugeMetricNameWhenUpdate(name string) error {
 	return nil
 }
 
-func (c *AgentMemCache) CheckCounterMetricNameWhenUpdate(name string) error {
+func (c *AgentMemCache) checkCounterMetricNameWhenUpdate(name string) error {
 	_, exists := c.counters[name]
 	if !exists {
 		return errors.NewInvalidMetricName(fmt.Sprintf("Invalid metric name: %s", name), nil)
 	}
+	return nil
+}
+
+func (c *AgentMemCache) checkGaugeMetricNameWhenReset(name string) error {
+	_, exists := c.gauges[name]
+	if !exists {
+		return errors.NewInvalidMetricName(fmt.Sprintf("Gauge metric with name: %s not exists", name), nil)
+	}
+
+	return nil
+}
+
+func (c *AgentMemCache) checkCounterMetricNameWhenReset(name string) error {
+	_, exists := c.counters[name]
+	if !exists {
+		return errors.NewInvalidMetricName(fmt.Sprintf("Counter metric with name: %s not exists", name), nil)
+	}
+
 	return nil
 }

@@ -6,7 +6,7 @@ import (
 	logger "github.com/Stern-Ritter/metrics-and-alerting-service/internal/logger/agent"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/monitors"
-	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/storage"
+	cache "github.com/Stern-Ritter/metrics-and-alerting-service/internal/storage/agent"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/utils"
 	"github.com/go-resty/resty/v2"
 	"github.com/jarcoal/httpmock"
@@ -16,7 +16,7 @@ import (
 )
 
 type MockAgentMemCache struct {
-	storage.AgentMemCache
+	cache.AgentMemCache
 	mock.Mock
 }
 
@@ -39,7 +39,7 @@ func TestUpdateMetrics(t *testing.T) {
 		logger, err := logger.Initialize("info")
 		require.NoError(t, err, "Error init logger")
 		mockAgentMemCache := MockAgentMemCache{
-			AgentMemCache: storage.NewAgentMemCache(make(map[string]metrics.GaugeMetric), make(map[string]metrics.CounterMetric), logger),
+			AgentMemCache: cache.NewAgentMemCache(make(map[string]metrics.GaugeMetric), make(map[string]metrics.CounterMetric), logger),
 		}
 		monitor := monitors.Monitor{}
 		mockRandom := utils.NewRandom()
@@ -74,7 +74,7 @@ func TestSendMetrics(t *testing.T) {
 		initMetricsCount := len(initGauges) + len(initCounters)
 
 		mockAgentMemCache := MockAgentMemCache{
-			AgentMemCache: storage.NewAgentMemCache(initGauges, initCounters, logger),
+			AgentMemCache: cache.NewAgentMemCache(initGauges, initCounters, logger),
 		}
 
 		mockAgentMemCache.On("ResetMetricValue", mock.Anything, mock.Anything).Return(nil)

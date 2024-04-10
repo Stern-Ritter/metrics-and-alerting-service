@@ -1,31 +1,71 @@
 package server
 
 import (
+	"database/sql"
+	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 
 	compress "github.com/Stern-Ritter/metrics-and-alerting-service/internal/compress/server"
+	config "github.com/Stern-Ritter/metrics-and-alerting-service/internal/config/server"
+	logger "github.com/Stern-Ritter/metrics-and-alerting-service/internal/logger/server"
 	service "github.com/Stern-Ritter/metrics-and-alerting-service/internal/service/server"
+	storage "github.com/Stern-Ritter/metrics-and-alerting-service/internal/storage/server"
 	"github.com/go-chi/chi"
 	"go.uber.org/zap"
 )
 
-func Run(s *service.Server) error {
-	isFileStorageEnabled := len(strings.TrimSpace(s.Config.StorageFilePath)) != 0
-	if isFileStorageEnabled && s.Config.Restore {
-		if err := s.MetricService.RestoreMetricsFromStorage(s.Config.StorageFilePath); err != nil {
-			s.Logger.Fatal(err.Error(), zap.String("event", "restore storage state from file"))
+func Run(config *config.ServerConfig, logger *logger.ServerLogger) error {
+	isDatabaseEnabled := len(strings.TrimSpace(config.DatabaseDSN)) != 0
+
+	var store storage.Storage
+
+	if isDatabaseEnabled {
+		conn, err := sql.Open("pgx", config.DatabaseDSN)
+		if err != nil {
+			logger.Fatal(err.Error(), zap.String("event", "connect database"))
 			return err
 		}
-		s.Logger.Info("Success", zap.String("event", "restore storage state from file"))
+		defer conn.Close()
 
-		s.MetricService.SetMetricsSaveInterval(s.Config.StorageFilePath, s.Config.StoreInterval)
+		dbStorage := storage.NewDBStorage(conn, logger)
+		appPath, err := os.Getwd()
+		if err != nil {
+			return err
+		}
+		err = dbStorage.InitDatabase(filepath.Join(appPath, "/resources/database/sсhema.sql"))
+		if err != nil {
+			log.Fatal(err.Error(), zap.String("event", "init database schema"))
+			return err
+		}
+		logger.Info("Success", zap.String("event", "init database schema"))
+		store = dbStorage
+		logger.Info("Success", zap.String("event", "create database storage"))
+	} else {
+		store = storage.NewMemoryStorage(logger)
+		logger.Info("Success", zap.String("event", "create in memory storage"))
 	}
 
-	r := addRoutes(s)
-	err := http.ListenAndServe(s.Config.URL, r)
+	mService := service.NewMetricService(store, logger)
+	server := service.NewServer(mService, config, logger)
+
+	isFileStorageEnabled := len(strings.TrimSpace(config.StorageFilePath)) != 0
+	if !isDatabaseEnabled && isFileStorageEnabled && config.Restore {
+		if err := server.MetricService.RestoreMetricsFromStorage(config.StorageFilePath); err != nil {
+			server.Logger.Fatal(err.Error(), zap.String("event", "restore storage state from file"))
+			return err
+		}
+		server.Logger.Info("Success", zap.String("event", "restore storage state from file"))
+
+		server.MetricService.SetMetricsSaveInterval(server.Config.StorageFilePath, server.Config.StoreInterval)
+	}
+
+	r := addRoutes(server)
+	err := http.ListenAndServe(server.Config.URL, r)
 	if err != nil {
-		s.Logger.Fatal(err.Error(), zap.String("event", "start server"))
+		server.Logger.Fatal(err.Error(), zap.String("event", "start server"))
 	}
 	return err
 }

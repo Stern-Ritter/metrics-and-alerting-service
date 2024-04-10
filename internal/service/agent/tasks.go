@@ -6,13 +6,13 @@ import (
 
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/monitors"
-	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/storage"
+	cache "github.com/Stern-Ritter/metrics-and-alerting-service/internal/storage/agent"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/utils"
 	"github.com/go-resty/resty/v2"
 	"go.uber.org/zap"
 )
 
-func UpdateMetrics(cache storage.AgentCache, monitor *monitors.Monitor, rand *utils.Random, logger *zap.Logger) {
+func UpdateMetrics(cache cache.AgentCache, monitor *monitors.Monitor, rand *utils.Random, logger *zap.Logger) {
 	var ms runtime.MemStats
 	runtime.ReadMemStats(&ms)
 	monitor.Update(&ms)
@@ -25,7 +25,7 @@ func UpdateMetrics(cache storage.AgentCache, monitor *monitors.Monitor, rand *ut
 	}
 }
 
-func SendMetrics(client *resty.Client, url string, endpoint string, cache storage.AgentCache, logger *zap.Logger) {
+func SendMetrics(client *resty.Client, url string, endpoint string, cache cache.AgentCache, logger *zap.Logger) {
 	gauges, counters := cache.GetMetrics()
 
 	err := cache.ResetMetricValue(string(metrics.Counter), "PollCount")

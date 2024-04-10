@@ -9,7 +9,7 @@ import (
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/monitors"
 	service "github.com/Stern-Ritter/metrics-and-alerting-service/internal/service/agent"
-	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/storage"
+	storage "github.com/Stern-Ritter/metrics-and-alerting-service/internal/storage/agent"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/utils"
 	"github.com/go-resty/resty/v2"
 	"go.uber.org/zap"

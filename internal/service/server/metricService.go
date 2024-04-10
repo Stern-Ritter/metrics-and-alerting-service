@@ -3,27 +3,34 @@ package server
 import (
 	"context"
 	"fmt"
+	"time"
 
+	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
 	logger "github.com/Stern-Ritter/metrics-and-alerting-service/internal/logger/server"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
-	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/storage"
+	storage "github.com/Stern-Ritter/metrics-and-alerting-service/internal/storage/server"
+	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/utils"
 	"go.uber.org/zap"
 )
 
 type MetricService struct {
-	DBStorage storage.DBStorage
-	Storage   storage.ServerStorage
-	Logger    *logger.ServerLogger
+	Storage storage.Storage
+	Logger  *logger.ServerLogger
 }
 
-func NewMetricService(dbStorage storage.DBStorage, storage storage.ServerStorage,
-	logger *logger.ServerLogger) *MetricService {
-	return &MetricService{DBStorage: dbStorage, Storage: storage, Logger: logger}
+func NewMetricService(storage storage.Storage, logger *logger.ServerLogger) *MetricService {
+	return &MetricService{Storage: storage, Logger: logger}
 }
 
-func (s *MetricService) UpdateMetricWithPathVars(metricType string, metricName string,
-	metricValue string, isSyncSaveStorageState bool, storageFilePath string) error {
-	if err := s.Storage.UpdateMetric(metricType, metricName, metricValue); err != nil {
+func (s *MetricService) UpdateMetricWithPathVars(ctx context.Context, mName string, mType string,
+	mValue string, isSyncSaveStorageState bool, storageFilePath string) error {
+	m, err := metrics.NewMetrics(mName, mType, mValue)
+	if err != nil {
+		return err
+	}
+
+	err = s.Storage.UpdateMetric(ctx, m)
+	if err != nil {
 		return err
 	}
 
@@ -38,29 +45,16 @@ func (s *MetricService) UpdateMetricWithPathVars(metricType string, metricName s
 	return nil
 }
 
-func (s *MetricService) UpdateMetricWithBody(metric metrics.Metrics, isSyncSaveStorageState bool,
+func (s *MetricService) UpdateMetricWithBody(ctx context.Context, metric metrics.Metrics, isSyncSaveStorageState bool,
 	storageFilePath string) (metrics.Metrics, error) {
-	switch metrics.MetricType(metric.MType) {
-	case metrics.Gauge:
-		updatedMetric, err := s.Storage.UpdateGaugeMetric(metrics.MetricsToGaugeMetric(metric))
-		if err != nil {
-			return metric, err
-		}
+	err := s.Storage.UpdateMetric(ctx, metric)
+	if err != nil {
+		return metrics.Metrics{}, err
+	}
 
-		value := updatedMetric.GetValue()
-		metric.Value = &value
-
-	case metrics.Counter:
-		updatedMetric, err := s.Storage.UpdateCounterMetric(metrics.MetricsToCounterMetric(metric))
-		if err != nil {
-			return metric, err
-		}
-
-		delta := updatedMetric.GetValue()
-		metric.Delta = &delta
-
-	default:
-		return metric, fmt.Errorf("invalid metric type: %s", metric.MType)
+	m, err := s.Storage.GetMetric(ctx, metric)
+	if err != nil {
+		return metrics.Metrics{}, err
 	}
 
 	if isSyncSaveStorageState {
@@ -72,44 +66,31 @@ func (s *MetricService) UpdateMetricWithBody(metric metrics.Metrics, isSyncSaveS
 		}
 	}
 
-	return metric, nil
+	return m, nil
 }
 
-func (s *MetricService) GetMetricValueByTypeAndName(metricType string, metricName string) (string, error) {
-	return s.Storage.GetMetricValueByTypeAndName(metricType, metricName)
-}
-
-func (s *MetricService) GetMetricHandlerWithBody(metric metrics.Metrics) (metrics.Metrics, error) {
-	switch metrics.MetricType(metric.MType) {
-	case metrics.Gauge:
-		savedMetric, err := s.Storage.GetGaugeMetric(metric.ID)
-		if err != nil {
-			metric.Value = &metrics.ZeroGaugeMetricValue
-			break
-		}
-
-		value := savedMetric.GetValue()
-		metric.Value = &value
-
-	case metrics.Counter:
-		savedMetric, err := s.Storage.GetCounterMetric(metric.ID)
-		if err != nil {
-			metric.Delta = &metrics.ZeroCounterMetricValue
-			break
-		}
-
-		delta := savedMetric.GetValue()
-		metric.Delta = &delta
-
-	default:
-		return metric, fmt.Errorf("invalid metric type: %s", metric.MType)
+func (s *MetricService) GetMetricValueByTypeAndName(ctx context.Context, mType string, mName string) (string, error) {
+	m, err := s.Storage.GetMetric(ctx, metrics.Metrics{ID: mName, MType: mType})
+	if err != nil {
+		return "", err
 	}
 
-	return metric, nil
+	switch metrics.MetricType(m.MType) {
+	case metrics.Gauge:
+		return utils.FormatGaugeMetricValue(*m.Value), nil
+	case metrics.Counter:
+		return utils.FormatCounterMetricValue(*m.Delta), nil
+	default:
+		return "", errors.NewInvalidMetricType(fmt.Sprintf("Invalid metric type: %s", m.MType), nil)
+	}
 }
 
-func (s *MetricService) GetMetrics() (map[string]metrics.GaugeMetric, map[string]metrics.CounterMetric) {
-	return s.Storage.GetMetrics()
+func (s *MetricService) GetMetricHandlerWithBody(ctx context.Context, metric metrics.Metrics) (metrics.Metrics, error) {
+	return s.Storage.GetMetric(ctx, metric)
+}
+
+func (s *MetricService) GetMetrics(ctx context.Context) (map[string]metrics.GaugeMetric, map[string]metrics.CounterMetric, error) {
+	return s.Storage.GetMetrics(ctx)
 }
 
 func (s *MetricService) RestoreMetricsFromStorage(storageFilePath string) error {
@@ -117,9 +98,24 @@ func (s *MetricService) RestoreMetricsFromStorage(storageFilePath string) error 
 }
 
 func (s *MetricService) SetMetricsSaveInterval(storageFilePath string, storeInterval int) {
-	s.Storage.SetSaveInterval(storageFilePath, storeInterval)
+	if storeInterval <= 0 {
+		return
+	}
+
+	s.Logger.Info("Start async save to file storage", zap.String("event", "start async save to file storage"),
+		zap.String("file name", storageFilePath), zap.Int("interval", storeInterval))
+	go func() {
+		ticker := time.NewTicker(time.Duration(storeInterval) * time.Second)
+		for range ticker.C {
+			if err := s.Storage.Save(storageFilePath); err != nil {
+				s.Logger.Error(err.Error(), zap.String("event", "async save to file storage"))
+			} else {
+				s.Logger.Info("Success async save to file storage", zap.String("event", "async save to file storage"))
+			}
+		}
+	}()
 }
 
 func (s *MetricService) PingDatabase(ctx context.Context) error {
-	return s.DBStorage.Ping(ctx)
+	return s.Storage.Ping(ctx)
 }
