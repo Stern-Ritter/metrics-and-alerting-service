@@ -57,6 +57,25 @@ func (s *Server) UpdateMetricHandlerWithBody(res http.ResponseWriter, req *http.
 	}
 }
 
+func (s *Server) UpdateMetricsBatchHandlerWithBody(res http.ResponseWriter, req *http.Request) {
+	metrics, err := decodeMetricsBatch(req.Body)
+	if err != nil {
+		http.Error(res, "Error decode request JSON body", http.StatusBadRequest)
+		return
+	}
+
+	err = s.MetricService.UpdateMetricsBatchWithBody(req.Context(), metrics,
+		s.isSyncSaveStorageState(), s.Config.StorageFilePath)
+
+	switch err.(type) {
+	case errors.InvalidMetricType, errors.InvalidMetricValue:
+		http.Error(res, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	res.WriteHeader(http.StatusOK)
+}
+
 func (s *Server) GetMetricHandlerWithPathVars(res http.ResponseWriter, req *http.Request) {
 	metricType := chi.URLParam(req, "type")
 	metricName := chi.URLParam(req, "name")
@@ -154,6 +173,22 @@ func decodeMetrics(source io.ReadCloser) (metrics.Metrics, error) {
 
 	err = json.Unmarshal(buf.Bytes(), &metric)
 	return metric, err
+}
+
+func decodeMetricsBatch(source io.ReadCloser) ([]metrics.Metrics, error) {
+	metricsBatch := make([]metrics.Metrics, 0)
+	var buf bytes.Buffer
+	_, err := buf.ReadFrom(source)
+	if err != nil {
+		return nil, err
+	}
+
+	err = json.Unmarshal(buf.Bytes(), &metricsBatch)
+	if err != nil {
+		return nil, err
+	}
+
+	return metricsBatch, nil
 }
 
 func (s *Server) isSyncSaveStorageState() bool {

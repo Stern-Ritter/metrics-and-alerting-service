@@ -33,31 +33,25 @@ func SendMetrics(client *resty.Client, url string, endpoint string, cache cache.
 		logger.Error(err.Error(), zap.String("event", "reset PollCount counter metric"))
 	}
 
-	for _, gaugeMetric := range gauges {
-		metric := metrics.GaugeMetricToMetrics(gaugeMetric)
-		body, err := json.Marshal(metric)
-		if err != nil {
-			logger.Error(err.Error(), zap.String("event", "JSON encoding gauge metric"))
-			continue
-		}
+	metricsBatch := make([]metrics.Metrics, 0)
 
-		_, err = sendPostRequest(client, url, endpoint, "application/json", body)
-		if err != nil {
-			logger.Error(err.Error(), zap.String("event", "send update gauge metric"))
-		}
+	for _, gaugeMetric := range gauges {
+		metricsBatch = append(metricsBatch, metrics.GaugeMetricToMetrics(gaugeMetric))
+
 	}
 
 	for _, counterMetric := range counters {
-		metric := metrics.CounterMetricToMetrics(counterMetric)
-		body, err := json.Marshal(metric)
-		if err != nil {
-			logger.Error(err.Error(), zap.String("event", "JSON encoding counter metric"))
-			continue
-		}
+		metricsBatch = append(metricsBatch, metrics.CounterMetricToMetrics(counterMetric))
 
-		_, err = sendPostRequest(client, url, endpoint, "application/json", body)
-		if err != nil {
-			logger.Error(err.Error(), zap.String("event", "send update counter metric"))
-		}
+	}
+
+	body, err := json.Marshal(metricsBatch)
+	if err != nil {
+		logger.Error(err.Error(), zap.String("event", "JSON encoding metrics batch"))
+	}
+
+	_, err = sendPostRequest(client, url, endpoint, "application/json", body)
+	if err != nil {
+		logger.Error(err.Error(), zap.String("event", "send update metrics batch"))
 	}
 }

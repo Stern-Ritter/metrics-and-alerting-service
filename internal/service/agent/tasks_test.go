@@ -71,7 +71,7 @@ func TestSendMetrics(t *testing.T) {
 			"second": counterMetic,
 		}
 
-		initMetricsCount := len(initGauges) + len(initCounters)
+		metricsBatchCount := 1
 
 		mockAgentMemCache := MockAgentMemCache{
 			AgentMemCache: cache.NewAgentMemCache(initGauges, initCounters, logger),
@@ -91,6 +91,6 @@ func TestSendMetrics(t *testing.T) {
 		httpmock.GetTotalCallCount()
 		info := httpmock.GetCallCountInfo()
 		callCount := info["POST http://localhost:8080/test"]
-		assert.Equal(t, initMetricsCount, callCount)
+		assert.Equal(t, metricsBatchCount, callCount)
 	})
 }

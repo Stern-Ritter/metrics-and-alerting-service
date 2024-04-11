@@ -14,7 +14,7 @@ type Metrics struct {
 	Value *float64 `json:"value,omitempty"` // значение метрики в случае передачи gauge
 }
 
-func NewMetrics(mName string, mTypeName string, value string) (Metrics, error) {
+func NewMetricsWithStringValue(mName string, mTypeName string, value string) (Metrics, error) {
 	switch MetricType(mTypeName) {
 	case Gauge:
 		v, err := parseGaugeMetricValue(value)
@@ -28,6 +28,21 @@ func NewMetrics(mName string, mTypeName string, value string) (Metrics, error) {
 		if err != nil {
 			return Metrics{}, err
 		}
+		return Metrics{ID: mName, MType: mTypeName, Delta: &v}, nil
+
+	default:
+		return Metrics{}, errors.NewInvalidMetricType(fmt.Sprintf("Invalid metric type: %s", mTypeName), nil)
+	}
+}
+
+func NewMetricsWithNumberValue(mName string, mTypeName string, value float64) (Metrics, error) {
+	switch MetricType(mTypeName) {
+	case Gauge:
+		v := value
+		return Metrics{ID: mName, MType: mTypeName, Value: &v}, nil
+
+	case Counter:
+		v := int64(value)
 		return Metrics{ID: mName, MType: mTypeName, Delta: &v}, nil
 
 	default:

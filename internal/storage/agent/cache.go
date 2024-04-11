@@ -77,6 +77,11 @@ func (c *AgentMemCache) UpdateCounterMetric(metric metrics.CounterMetric) (metri
 }
 
 func (c *AgentMemCache) ResetMetricValue(metricType, metricName string) error {
+	c.countersMu.Lock()
+	c.gaugesMu.Lock()
+	defer c.countersMu.Unlock()
+	defer c.gaugesMu.Unlock()
+
 	switch metrics.MetricType(metricType) {
 	case metrics.Gauge:
 		err := c.checkGaugeMetricNameWhenReset(metricName)

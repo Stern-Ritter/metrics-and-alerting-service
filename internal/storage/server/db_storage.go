@@ -87,19 +87,48 @@ func (s *DBStorage) Bootstrap(ctx context.Context) error {
 }
 
 func (s *DBStorage) UpdateMetric(ctx context.Context, metric metrics.Metrics) error {
+	tx, err := s.conn.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	//nolint:errcheck
+	defer tx.Rollback()
+
+	err = s.updateMetricInTx(ctx, tx, metric)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+func (s *DBStorage) UpdateMetrics(ctx context.Context, metricsBatch []metrics.Metrics) error {
+	tx, err := s.conn.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	//nolint:errcheck
+	defer tx.Rollback()
+
+	for _, metric := range metricsBatch {
+		err = s.updateMetricInTx(ctx, tx, metric)
+		if err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit()
+}
+
+func (s *DBStorage) updateMetricInTx(ctx context.Context, tx *sql.Tx, metric metrics.Metrics) error {
 	mValue, err := metric.GetValue()
 	if err != nil {
 		return err
 	}
 
-	tx, err := s.conn.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	//nolint:errcheck
-	defer tx.Rollback()
-
-	row := s.conn.QueryRowContext(ctx, `
+	row := tx.QueryRowContext(ctx, `
 		SELECT
 			m.id,
 			m.value
@@ -115,7 +144,7 @@ func (s *DBStorage) UpdateMetric(ctx context.Context, metric metrics.Metrics) er
 
 	var mID int64
 	var mSavedValue float64
-	err = row.Scan(&mID, &mValue)
+	err = row.Scan(&mID, &mSavedValue)
 
 	if err != nil {
 		if !e.Is(err, sql.ErrNoRows) {
@@ -127,15 +156,11 @@ func (s *DBStorage) UpdateMetric(ctx context.Context, metric metrics.Metrics) er
 		case metrics.Gauge:
 			err = updateMetric(ctx, tx, mID, mValue)
 		case metrics.Counter:
-			err = updateMetric(ctx, tx, mID, mSavedValue+mSavedValue)
+			err = updateMetric(ctx, tx, mID, mValue+mSavedValue)
 		}
 	}
 
-	if err != nil {
-		return err
-	}
-
-	return tx.Commit()
+	return err
 }
 
 func saveMetric(ctx context.Context, tx *sql.Tx, mName string, mType string, mValue float64) error {
@@ -208,10 +233,10 @@ func (s *DBStorage) GetMetric(ctx context.Context, metric metrics.Metrics) (metr
 	err := row.Scan(&mName, &mType, &mValue)
 
 	if err != nil {
-		return metrics.Metrics{}, err
+		return metrics.Metrics{}, errors.NewInvalidMetricName(fmt.Sprintf("Metric with name: %s not exists", metric.ID), nil)
 	}
 
-	m, err := metrics.NewMetrics(mName, mType, fmt.Sprint(mValue))
+	m, err := metrics.NewMetricsWithNumberValue(mName, mType, mValue)
 	if err != nil {
 		return metrics.Metrics{}, err
 	}

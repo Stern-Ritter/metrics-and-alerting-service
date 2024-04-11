@@ -24,7 +24,7 @@ func NewMetricService(storage storage.Storage, logger *logger.ServerLogger) *Met
 
 func (s *MetricService) UpdateMetricWithPathVars(ctx context.Context, mName string, mType string,
 	mValue string, isSyncSaveStorageState bool, storageFilePath string) error {
-	m, err := metrics.NewMetrics(mName, mType, mValue)
+	m, err := metrics.NewMetricsWithStringValue(mName, mType, mValue)
 	if err != nil {
 		return err
 	}
@@ -67,6 +67,24 @@ func (s *MetricService) UpdateMetricWithBody(ctx context.Context, metric metrics
 	}
 
 	return m, nil
+}
+
+func (s *MetricService) UpdateMetricsBatchWithBody(ctx context.Context, metrics []metrics.Metrics,
+	isSyncSaveStorageState bool, storageFilePath string) error {
+	err := s.Storage.UpdateMetrics(ctx, metrics)
+	if err != nil {
+		return err
+	}
+
+	if isSyncSaveStorageState {
+		err := s.Storage.Save(storageFilePath)
+		if err != nil {
+			s.Logger.Error(err.Error(), zap.String("event", "sync save to file storage"))
+		} else {
+			s.Logger.Info("Success sync save to file storage", zap.String("event", "sync save to file storage"))
+		}
+	}
+	return nil
 }
 
 func (s *MetricService) GetMetricValueByTypeAndName(ctx context.Context, mType string, mName string) (string, error) {

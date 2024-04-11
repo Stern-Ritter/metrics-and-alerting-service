@@ -58,6 +58,29 @@ func (s *MemoryStorage) UpdateMetric(ctx context.Context, metric metrics.Metrics
 	return nil
 }
 
+func (s *MemoryStorage) UpdateMetrics(ctx context.Context, metricsBatch []metrics.Metrics) error {
+	for _, metric := range metricsBatch {
+		switch metrics.MetricType(metric.MType) {
+		case metrics.Gauge:
+			m := metrics.MetricsToGaugeMetric(metric)
+			_, err := s.updateGaugeMetric(m)
+			if err != nil {
+				return err
+			}
+		case metrics.Counter:
+			m := metrics.MetricsToCounterMetric(metric)
+			_, err := s.updateCounterMetric(m)
+			if err != nil {
+				return err
+			}
+		default:
+			return errors.NewInvalidMetricType(fmt.Sprintf("Invalid metric type: %s", metric.MType), nil)
+		}
+	}
+
+	return nil
+}
+
 func (s *MemoryStorage) updateGaugeMetric(metric metrics.GaugeMetric) (metrics.GaugeMetric, error) {
 	s.gaugesMu.Lock()
 	defer s.gaugesMu.Unlock()

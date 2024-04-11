@@ -72,6 +72,7 @@ func addRoutes(s *service.Server) *chi.Mux {
 	r.Use(s.Logger.LoggerMiddleware)
 	r.Use(compress.GzipMiddleware)
 	r.Get("/", s.GetMetricsHandler)
+	r.Post("/updates/", s.UpdateMetricsBatchHandlerWithBody)
 
 	r.Route("/update", func(r chi.Router) {
 		r.Post("/", s.UpdateMetricHandlerWithBody)
