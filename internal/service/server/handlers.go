@@ -21,7 +21,7 @@ func (s *Server) UpdateMetricHandlerWithPathVars(res http.ResponseWriter, req *h
 	mValue := chi.URLParam(req, "value")
 
 	err := s.MetricService.UpdateMetricWithPathVars(req.Context(), mName, mType, mValue,
-		s.isSyncSaveStorageState(), s.Config.StorageFilePath)
+		s.isSyncSaveStorageState(), s.Config.FileStoragePath)
 
 	switch err.(type) {
 	case errors.InvalidMetricType, errors.InvalidMetricValue:
@@ -40,7 +40,7 @@ func (s *Server) UpdateMetricHandlerWithBody(res http.ResponseWriter, req *http.
 	}
 
 	updatedMetric, err := s.MetricService.UpdateMetricWithBody(req.Context(), metric, s.isSyncSaveStorageState(),
-		s.Config.StorageFilePath)
+		s.Config.FileStoragePath)
 	if err != nil {
 		http.Error(res, err.Error(), http.StatusBadRequest)
 		return
@@ -65,7 +65,7 @@ func (s *Server) UpdateMetricsBatchHandlerWithBody(res http.ResponseWriter, req 
 	}
 
 	err = s.MetricService.UpdateMetricsBatchWithBody(req.Context(), metrics,
-		s.isSyncSaveStorageState(), s.Config.StorageFilePath)
+		s.isSyncSaveStorageState(), s.Config.FileStoragePath)
 
 	switch err.(type) {
 	case errors.InvalidMetricType, errors.InvalidMetricValue:
@@ -192,7 +192,7 @@ func decodeMetricsBatch(source io.ReadCloser) ([]metrics.Metrics, error) {
 }
 
 func (s *Server) isSyncSaveStorageState() bool {
-	isFileStorageEnabled := len(strings.TrimSpace(s.Config.StorageFilePath)) != 0
+	isFileStorageEnabled := len(strings.TrimSpace(s.Config.FileStoragePath)) != 0
 	isSyncSaveStorageState := s.Config.StoreInterval == 0
 	return isFileStorageEnabled && isSyncSaveStorageState
 }

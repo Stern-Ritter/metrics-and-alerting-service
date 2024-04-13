@@ -25,7 +25,7 @@ func GetConfig(c config.ServerConfig) (config.ServerConfig, error) {
 func parseFlags(c *config.ServerConfig) error {
 	flag.StringVar(&c.URL, "a", "localhost:8080", "address and port to run server in format <host>:<port>")
 	flag.IntVar(&c.StoreInterval, "i", 300, "interval to store metrics to file in seconds")
-	flag.StringVar(&c.StorageFilePath, "f", "/tmp/metrics-db.json", "metrics storage file path")
+	flag.StringVar(&c.FileStoragePath, "f", "/tmp/metrics-db.json", "metrics storage file path")
 	flag.BoolVar(&c.Restore, "r", true, "will metrics be restored from the file")
 	flag.StringVar(&c.DatabaseDSN, "d", "", "database dsn")
 	flag.Parse()

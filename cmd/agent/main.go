@@ -17,7 +17,7 @@ import (
 
 func main() {
 	config, err := app.GetConfig(config.AgentConfig{
-		SendMetricsEndPoint: "/updates/",
+		SendMetricsEndPoint: "/updates",
 		LoggerLvl:           "info",
 	})
 	if err != nil {

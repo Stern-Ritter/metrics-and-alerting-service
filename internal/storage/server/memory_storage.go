@@ -153,7 +153,7 @@ func (s *MemoryStorage) Ping(ctx context.Context) error {
 func (s *MemoryStorage) Restore(fname string) error {
 	file, err := os.OpenFile(fname, os.O_RDONLY|os.O_CREATE, 0644)
 	if err != nil {
-		return err
+		return errors.NewFileUnavailable(fmt.Sprintf("can not open file %s to restore state: %v", fname, err), err)
 	}
 	defer file.Close()
 
@@ -187,7 +187,7 @@ func (s *MemoryStorage) Restore(fname string) error {
 func (s *MemoryStorage) Save(fname string) error {
 	file, err := os.OpenFile(fname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
-		return err
+		return errors.NewFileUnavailable(fmt.Sprintf("can not open file %s to save state: %v", fname, err), err)
 	}
 	defer file.Close()
 

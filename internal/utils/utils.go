@@ -20,7 +20,7 @@ func NewRandom() Random {
 
 func (r *Random) Float(min, max float64) (float64, error) {
 	if max < min {
-		return 0, fmt.Errorf("min value: %f should be less than max value: %f", min, max)
+		return 0, fmt.Errorf("random generator min value: %f should be less than max value: %f", min, max)
 	}
 
 	res := min + r.rand.Float64()*(max-min)

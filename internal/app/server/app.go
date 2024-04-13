@@ -2,10 +2,10 @@ package server
 
 import (
 	"context"
-	"database/sql"
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	compress "github.com/Stern-Ritter/metrics-and-alerting-service/internal/compress/server"
 	config "github.com/Stern-Ritter/metrics-and-alerting-service/internal/config/server"
@@ -15,7 +15,7 @@ import (
 	"github.com/go-chi/chi"
 	"go.uber.org/zap"
 
-	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/jackc/pgx/v5"
 )
 
 func Run(config *config.ServerConfig, logger *logger.ServerLogger) error {
@@ -24,15 +24,16 @@ func Run(config *config.ServerConfig, logger *logger.ServerLogger) error {
 	var store storage.Storage
 
 	if isDatabaseEnabled {
-		conn, err := sql.Open("pgx", config.DatabaseDSN)
+		conn, err := pgx.Connect(context.Background(), config.DatabaseDSN)
 		if err != nil {
 			logger.Fatal(err.Error(), zap.String("event", "connect database"))
 			return err
 		}
-		defer conn.Close()
+		defer conn.Close(context.Background())
 
 		dbStorage := storage.NewDBStorage(conn, logger)
-		err = dbStorage.Bootstrap(context.TODO())
+		ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+		err = dbStorage.Bootstrap(ctx)
 		if err != nil {
 			log.Fatal(err.Error(), zap.String("event", "init database schema"))
 			return err
@@ -48,15 +49,15 @@ func Run(config *config.ServerConfig, logger *logger.ServerLogger) error {
 	mService := service.NewMetricService(store, logger)
 	server := service.NewServer(mService, config, logger)
 
-	isFileStorageEnabled := len(strings.TrimSpace(config.StorageFilePath)) != 0
+	isFileStorageEnabled := len(strings.TrimSpace(config.FileStoragePath)) != 0
 	if !isDatabaseEnabled && isFileStorageEnabled && config.Restore {
-		if err := server.MetricService.RestoreMetricsFromStorage(config.StorageFilePath); err != nil {
+		if err := server.MetricService.RestoreStateFromFile(config.FileStoragePath); err != nil {
 			server.Logger.Fatal(err.Error(), zap.String("event", "restore storage state from file"))
 			return err
 		}
 		server.Logger.Info("Success", zap.String("event", "restore storage state from file"))
 
-		server.MetricService.SetMetricsSaveInterval(server.Config.StorageFilePath, server.Config.StoreInterval)
+		server.MetricService.SetSaveStateToFileInterval(server.Config.FileStoragePath, server.Config.StoreInterval)
 	}
 
 	r := addRoutes(server)
@@ -72,11 +73,14 @@ func addRoutes(s *service.Server) *chi.Mux {
 	r.Use(s.Logger.LoggerMiddleware)
 	r.Use(compress.GzipMiddleware)
 	r.Get("/", s.GetMetricsHandler)
-	r.Post("/updates/", s.UpdateMetricsBatchHandlerWithBody)
 
 	r.Route("/update", func(r chi.Router) {
 		r.Post("/", s.UpdateMetricHandlerWithBody)
 		r.Post("/{type}/{name}/{value}", s.UpdateMetricHandlerWithPathVars)
+	})
+
+	r.Route("/updates", func(r chi.Router) {
+		r.Post("/", s.UpdateMetricsBatchHandlerWithBody)
 	})
 
 	r.Route("/value", func(r chi.Router) {
