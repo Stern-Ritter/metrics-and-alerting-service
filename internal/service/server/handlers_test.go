@@ -151,7 +151,7 @@ func TestUpdateMetricHandlerWithBody(t *testing.T) {
 		want                     want
 	}{
 		{
-			name:                   "should return status code 500 when body contains incorrect json",
+			name:                   "should return status code 400 when body contains incorrect json",
 			method:                 http.MethodPost,
 			url:                    "/update",
 			body:                   `{ id: "Alloc" type: "gauge" value: 22.2 }`,
@@ -229,6 +229,138 @@ func TestUpdateMetricHandlerWithBody(t *testing.T) {
 			s := NewServer(metricService, config, logger)
 
 			handler := http.HandlerFunc(s.UpdateMetricHandlerWithBody)
+			server := httptest.NewServer(handler)
+			defer server.Close()
+
+			req := resty.New().R()
+			req.Method = tt.method
+			req.Body = tt.body
+			req.URL = fmt.Sprintf("%s%s", server.URL, tt.url)
+
+			resp, err := req.Send()
+			require.NoError(t, err, "Error making HTTP request")
+			assert.Equal(t, tt.want.code, resp.StatusCode(), "Response code didn't match expected")
+			assert.Equal(t, tt.want.body, string(resp.Body()))
+		})
+	}
+}
+
+func TestUpdateMetricsBatchHandlerWithBody(t *testing.T) {
+	type want struct {
+		code int
+		body string
+	}
+
+	testCases := []struct {
+		name                      string
+		method                    string
+		url                       string
+		body                      string
+		useStorageUpdateMetrics   bool
+		storageUpdateMetricsError error
+		want                      want
+	}{
+		{
+			name:                    "should return status code 400 when body contains incorrect json",
+			method:                  http.MethodPost,
+			url:                     "/updates",
+			body:                    `[{ id: "Alloc" type: "gauge" value: 22.2 }]`,
+			useStorageUpdateMetrics: false,
+			want: want{
+				code: http.StatusBadRequest,
+				body: "Error decode request JSON body\n",
+			},
+		},
+		{
+			name:                      "should return status code 400 when body contains metrics batch with invalid metric type",
+			method:                    http.MethodPost,
+			url:                       "/updates",
+			body:                      `[{ "id": "Alloc", "type": "unknown", "value": 22.2 }]`,
+			useStorageUpdateMetrics:   true,
+			storageUpdateMetricsError: errors.NewInvalidMetricType("Invalid metric type: unknown", nil),
+			want: want{
+				code: http.StatusBadRequest,
+				body: "Invalid metric type: unknown\n",
+			},
+		},
+		{
+			name:                    "should return status code 400 when body contains metrics batch with gauge metric with invalid value",
+			method:                  http.MethodPost,
+			url:                     "/updates",
+			body:                    `[{ "id": "Alloc", "type": "gauge", "value": "twenty"}]`,
+			useStorageUpdateMetrics: false,
+			want: want{
+				code: http.StatusBadRequest,
+				body: "Error decode request JSON body\n",
+			},
+		},
+		{
+			name:                    "should return status code 200 when body contains metrics batch with valid gauge metric",
+			method:                  http.MethodPost,
+			url:                     "/updates",
+			body:                    `[{ "id": "Alloc", "type": "gauge", "value": 22.2}]`,
+			useStorageUpdateMetrics: true,
+			want: want{
+				code: http.StatusOK,
+				body: "",
+			},
+		},
+		{
+			name:                    "should return status code 400 when body contains metrics batch with counter metric with invalid value",
+			method:                  http.MethodPost,
+			url:                     "/updates",
+			body:                    `[{ "id": "PoolCount", "type": "counter", "delta": 10.11}]`,
+			useStorageUpdateMetrics: false,
+			want: want{
+				code: http.StatusBadRequest,
+				body: "Error decode request JSON body\n",
+			},
+		},
+		{
+			name:                    "should return status code 200 when body contains metrics batch with valid counter metric",
+			method:                  http.MethodPost,
+			url:                     "/update",
+			body:                    `[{ "id": "PoolCount", "type": "counter", "delta": 10}]`,
+			useStorageUpdateMetrics: true,
+			want: want{
+				code: http.StatusOK,
+				body: "",
+			},
+		},
+		{
+			name:   "should return status code 200 when body contains metrics batch with multiple valid gauge and counter metrics",
+			method: http.MethodPost,
+			url:    "/update",
+			body: `
+			[{ "id": "Alloc", "type": "gauge", "value": 22.2},{ "id": "PoolCount", "type": "counter", "delta": 10}]`,
+			useStorageUpdateMetrics: true,
+			want: want{
+				code: http.StatusOK,
+				body: "",
+			},
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			mockStorage := NewMockStorage(ctrl)
+			if tt.useStorageUpdateMetrics {
+				mockStorage.
+					EXPECT().
+					UpdateMetrics(gomock.Any(), gomock.Any()).
+					Return(tt.storageUpdateMetricsError)
+			}
+
+			config := &server.ServerConfig{}
+			logger, err := logger.Initialize("info")
+			require.NoError(t, err, "Error init logger")
+			metricService := NewMetricService(mockStorage, logger)
+			s := NewServer(metricService, config, logger)
+
+			handler := http.HandlerFunc(s.UpdateMetricsBatchHandlerWithBody)
 			server := httptest.NewServer(handler)
 			defer server.Close()
 
@@ -344,7 +476,7 @@ func TestGetMetricHandlerWithBody(t *testing.T) {
 		want                  want
 	}{
 		{
-			name:       "should return status code 500 when body contains incorrect json",
+			name:       "should return status code 400 when body contains incorrect json",
 			method:     http.MethodPost,
 			url:        "/value",
 			body:       `{ id: "Alloc" type: "gauge" }`,

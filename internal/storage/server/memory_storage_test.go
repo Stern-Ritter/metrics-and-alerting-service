@@ -131,6 +131,144 @@ func TestUpdateMetric(t *testing.T) {
 	}
 }
 
+func TestUpdateMetrics(t *testing.T) {
+	testCases := []struct {
+		name string
+
+		gaugesInitState   map[string]metrics.GaugeMetric
+		countersInitState map[string]metrics.CounterMetric
+
+		metrics []metrics.Metrics
+
+		gaugesUpdatedState   map[string]metrics.GaugeMetric
+		countersUpdatedState map[string]metrics.CounterMetric
+		storageError         error
+	}{
+		{
+			name:              "should return error when update metrics batch with metric with invalid type",
+			gaugesInitState:   make(map[string]metrics.GaugeMetric),
+			countersInitState: make(map[string]metrics.CounterMetric),
+
+			metrics: []metrics.Metrics{{ID: defaultMetricName, MType: "unknown", Value: &validGaugeMetricValue}},
+
+			gaugesUpdatedState:   make(map[string]metrics.GaugeMetric),
+			countersUpdatedState: make(map[string]metrics.CounterMetric),
+			storageError:         errors.InvalidMetricType{},
+		},
+		{
+			name:              "should correct create metric when update metrics batch with non existing gauge metric with valid value",
+			gaugesInitState:   make(map[string]metrics.GaugeMetric),
+			countersInitState: make(map[string]metrics.CounterMetric),
+
+			metrics: []metrics.Metrics{{ID: defaultMetricName, MType: validGaugeMetricType, Value: &validGaugeMetricValue}},
+
+			gaugesUpdatedState: map[string]metrics.GaugeMetric{defaultMetricName: metrics.NewGauge(defaultMetricName,
+				updatedNonExistingGaugeMetricValue)},
+			countersUpdatedState: make(map[string]metrics.CounterMetric),
+			storageError:         nil,
+		},
+		{
+			name:              "should correct update metric when update metrics batch with existing gauge metric with valid value",
+			gaugesInitState:   map[string]metrics.GaugeMetric{defaultMetricName: metrics.NewGauge(defaultMetricName, initGaugeMetricValue)},
+			countersInitState: make(map[string]metrics.CounterMetric),
+
+			metrics: []metrics.Metrics{{ID: defaultMetricName, MType: validGaugeMetricType, Value: &validGaugeMetricValue}},
+
+			gaugesUpdatedState: map[string]metrics.GaugeMetric{defaultMetricName: metrics.NewGauge(defaultMetricName,
+				updatedExistingGaugeMetricValue)},
+			countersUpdatedState: make(map[string]metrics.CounterMetric),
+			storageError:         nil,
+		},
+
+		{
+			name:              "should correct create metric when update metrics batch with non existing counter metric with valid value",
+			gaugesInitState:   make(map[string]metrics.GaugeMetric),
+			countersInitState: make(map[string]metrics.CounterMetric),
+
+			metrics: []metrics.Metrics{{ID: defaultMetricName, MType: validCounterMetricType, Delta: &validCounterMetricValue}},
+
+			gaugesUpdatedState: make(map[string]metrics.GaugeMetric),
+			countersUpdatedState: map[string]metrics.CounterMetric{
+				defaultMetricName: metrics.NewCounter(defaultMetricName, updatedNonExistingCounterMetricValue),
+			},
+			storageError: nil,
+		},
+
+		{
+			name:              "should correct update metric when update metrics batch with existing counter metric with valid value",
+			gaugesInitState:   make(map[string]metrics.GaugeMetric),
+			countersInitState: map[string]metrics.CounterMetric{defaultMetricName: metrics.NewCounter(defaultMetricName, initCounterMetricValue)},
+
+			metrics: []metrics.Metrics{{ID: defaultMetricName, MType: validCounterMetricType, Delta: &validCounterMetricValue}},
+
+			gaugesUpdatedState: make(map[string]metrics.GaugeMetric),
+			countersUpdatedState: map[string]metrics.CounterMetric{
+				defaultMetricName: metrics.NewCounter(defaultMetricName, updatedExistingCounterMetricValue),
+			},
+			storageError: nil,
+		},
+
+		{
+			name:              "should correct update metrics when update metrics batch with multiple non existing gauge and counter metrics with valid value",
+			gaugesInitState:   make(map[string]metrics.GaugeMetric),
+			countersInitState: make(map[string]metrics.CounterMetric),
+
+			metrics: []metrics.Metrics{
+				{ID: defaultMetricName, MType: validGaugeMetricType, Value: &validGaugeMetricValue},
+				{ID: defaultMetricName, MType: validCounterMetricType, Delta: &validCounterMetricValue},
+			},
+
+			gaugesUpdatedState: map[string]metrics.GaugeMetric{
+				defaultMetricName: metrics.NewGauge(defaultMetricName, updatedNonExistingGaugeMetricValue)},
+			countersUpdatedState: map[string]metrics.CounterMetric{
+				defaultMetricName: metrics.NewCounter(defaultMetricName, updatedNonExistingCounterMetricValue),
+			},
+			storageError: nil,
+		},
+
+		{
+			name:              "should correct update metrics when update metrics batch with multiple existing gauge and counter metrics with valid value",
+			gaugesInitState:   map[string]metrics.GaugeMetric{defaultMetricName: metrics.NewGauge(defaultMetricName, initGaugeMetricValue)},
+			countersInitState: map[string]metrics.CounterMetric{defaultMetricName: metrics.NewCounter(defaultMetricName, initCounterMetricValue)},
+
+			metrics: []metrics.Metrics{
+				{ID: defaultMetricName, MType: validGaugeMetricType, Value: &validGaugeMetricValue},
+				{ID: defaultMetricName, MType: validCounterMetricType, Delta: &validCounterMetricValue},
+			},
+
+			gaugesUpdatedState: map[string]metrics.GaugeMetric{
+				defaultMetricName: metrics.NewGauge(defaultMetricName, updatedExistingGaugeMetricValue)},
+			countersUpdatedState: map[string]metrics.CounterMetric{
+				defaultMetricName: metrics.NewCounter(defaultMetricName, updatedExistingCounterMetricValue),
+			},
+			storageError: nil,
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			logger, err := logger.Initialize("info")
+			require.NoError(t, err, "Error init logger")
+			metricsStorage := NewMemoryStorage(logger)
+			metricsStorage.SetGaugeMetircs(tt.gaugesInitState)
+			metricsStorage.SetCounterMetrics(tt.countersInitState)
+
+			err = metricsStorage.UpdateMetrics(context.TODO(), tt.metrics)
+			if tt.storageError != nil {
+				require.Error(t, err)
+				assert.IsType(t, tt.storageError, err)
+			} else {
+				require.NoError(t, err)
+			}
+
+			gauges, counters, err := metricsStorage.GetMetrics(context.TODO())
+			require.NoError(t, err)
+			assert.True(t, reflect.DeepEqual(tt.gaugesUpdatedState, gauges))
+			assert.True(t, reflect.DeepEqual(tt.countersUpdatedState, counters))
+		})
+	}
+}
+
 func TestGetMetric(t *testing.T) {
 	testCases := []struct {
 		name              string
