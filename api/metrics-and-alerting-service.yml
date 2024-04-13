@@ -19,6 +19,15 @@ paths:
               schema:
                 type: string
 
+  /ping:
+    get:
+      description: Сhecks the connection to the database
+      responses:
+        '200':
+          description: Database available
+        '500':
+          description: Database unavailable
+
   /update:
     post:
       description: Create or update metric with json body
@@ -51,6 +60,22 @@ paths:
         '400':
           $ref: '#/components/responses/400Error'
 
+  /updates:
+    post:
+      description: Create or update metrics batch with json body
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/Metric'  
+      responses:
+        '200':
+          description: Successful response
+        '400':
+          $ref: '#/components/responses/400Error'
 
   /value/{type}/{name}:
     get:
