@@ -32,6 +32,7 @@ func (s *DBStorage) Bootstrap(ctx context.Context) error {
 		DROP TABLE IF EXISTS metric_types;
     `)
 	if err != nil {
+		//nolint:errcheck
 		tx.Rollback(ctx)
 		return err
 	}
@@ -43,6 +44,7 @@ func (s *DBStorage) Bootstrap(ctx context.Context) error {
 		);
 	`)
 	if err != nil {
+		//nolint:errcheck
 		tx.Rollback(ctx)
 		return err
 	}
@@ -51,6 +53,7 @@ func (s *DBStorage) Bootstrap(ctx context.Context) error {
 		CREATE UNIQUE INDEX metric_type_name_idx ON metric_types (name);
 	`)
 	if err != nil {
+		//nolint:errcheck
 		tx.Rollback(ctx)
 		return err
 	}
@@ -65,6 +68,7 @@ func (s *DBStorage) Bootstrap(ctx context.Context) error {
 		);
 	`)
 	if err != nil {
+		//nolint:errcheck
 		tx.Rollback(ctx)
 		return err
 	}
@@ -73,6 +77,7 @@ func (s *DBStorage) Bootstrap(ctx context.Context) error {
 		CREATE INDEX metric_name_idx ON metrics (name);
 	`)
 	if err != nil {
+		//nolint:errcheck
 		tx.Rollback(ctx)
 		return err
 	}
@@ -81,6 +86,7 @@ func (s *DBStorage) Bootstrap(ctx context.Context) error {
 		INSERT INTO metric_types (name) VALUES ('gauge'), ('counter');
 	`)
 	if err != nil {
+		//nolint:errcheck
 		tx.Rollback(ctx)
 		return err
 	}
@@ -96,6 +102,7 @@ func (s *DBStorage) UpdateMetric(ctx context.Context, metric metrics.Metrics) er
 
 	err = s.updateMetricInTx(ctx, tx, metric)
 	if err != nil {
+		//nolint:errcheck
 		tx.Rollback(ctx)
 		return err
 	}
@@ -112,6 +119,7 @@ func (s *DBStorage) UpdateMetrics(ctx context.Context, metricsBatch []metrics.Me
 	for _, metric := range metricsBatch {
 		err = s.updateMetricInTx(ctx, tx, metric)
 		if err != nil {
+			//nolint:errcheck
 			tx.Rollback(ctx)
 			return err
 		}

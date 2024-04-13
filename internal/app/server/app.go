@@ -5,7 +5,6 @@ import (
 	"log"
 	"net/http"
 	"strings"
-	"time"
 
 	compress "github.com/Stern-Ritter/metrics-and-alerting-service/internal/compress/server"
 	config "github.com/Stern-Ritter/metrics-and-alerting-service/internal/config/server"
@@ -32,8 +31,7 @@ func Run(config *config.ServerConfig, logger *logger.ServerLogger) error {
 		defer conn.Close(context.Background())
 
 		dbStorage := storage.NewDBStorage(conn, logger)
-		ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-		err = dbStorage.Bootstrap(ctx)
+		err = dbStorage.Bootstrap(context.Background())
 		if err != nil {
 			log.Fatal(err.Error(), zap.String("event", "init database schema"))
 			return err
