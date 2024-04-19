@@ -1,6 +1,7 @@
 package server
 
 import (
+	"database/sql"
 	e "errors"
 	"fmt"
 
@@ -13,89 +14,16 @@ import (
 )
 
 type DBStorage struct {
-	conn   *pgx.Conn
+	db     *sql.DB
 	Logger *logger.ServerLogger
 }
 
-func NewDBStorage(conn *pgx.Conn, logger *logger.ServerLogger) *DBStorage {
-	return &DBStorage{conn: conn, Logger: logger}
-}
-
-func (s *DBStorage) Bootstrap(ctx context.Context) error {
-	tx, err := s.conn.Begin(ctx)
-	if err != nil {
-		return err
-	}
-
-	_, err = tx.Exec(ctx, `
-		DROP TABLE IF EXISTS metrics;
-		DROP TABLE IF EXISTS metric_types;
-    `)
-	if err != nil {
-		//nolint:errcheck
-		tx.Rollback(ctx)
-		return err
-	}
-
-	_, err = tx.Exec(ctx, `
-		CREATE TABLE metric_types (
-			id SERIAL PRIMARY KEY,
-			name VARCHAR(256) NOT NULL
-		);
-	`)
-	if err != nil {
-		//nolint:errcheck
-		tx.Rollback(ctx)
-		return err
-	}
-
-	_, err = tx.Exec(ctx, `
-		CREATE UNIQUE INDEX metric_type_name_idx ON metric_types (name);
-	`)
-	if err != nil {
-		//nolint:errcheck
-		tx.Rollback(ctx)
-		return err
-	}
-
-	_, err = tx.Exec(ctx, `
-		CREATE TABLE metrics (
-			id BIGSERIAL PRIMARY KEY,
-			name VARCHAR(256) NOT NULL,
-			type_id INTEGER NOT NULL,
-			value DOUBLE PRECISION NOT NULL,
-			FOREIGN KEY (type_id) REFERENCES metric_types (id)
-		);
-	`)
-	if err != nil {
-		//nolint:errcheck
-		tx.Rollback(ctx)
-		return err
-	}
-
-	_, err = tx.Exec(ctx, `
-		CREATE INDEX metric_name_idx ON metrics (name);
-	`)
-	if err != nil {
-		//nolint:errcheck
-		tx.Rollback(ctx)
-		return err
-	}
-
-	_, err = tx.Exec(ctx, `
-		INSERT INTO metric_types (name) VALUES ('gauge'), ('counter');
-	`)
-	if err != nil {
-		//nolint:errcheck
-		tx.Rollback(ctx)
-		return err
-	}
-
-	return tx.Commit(ctx)
+func NewDBStorage(db *sql.DB, logger *logger.ServerLogger) *DBStorage {
+	return &DBStorage{db: db, Logger: logger}
 }
 
 func (s *DBStorage) UpdateMetric(ctx context.Context, metric metrics.Metrics) error {
-	tx, err := s.conn.Begin(ctx)
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{})
 	if err != nil {
 		return err
 	}
@@ -103,15 +31,15 @@ func (s *DBStorage) UpdateMetric(ctx context.Context, metric metrics.Metrics) er
 	err = s.updateMetricInTx(ctx, tx, metric)
 	if err != nil {
 		//nolint:errcheck
-		tx.Rollback(ctx)
+		tx.Rollback()
 		return err
 	}
 
-	return tx.Commit(ctx)
+	return tx.Commit()
 }
 
 func (s *DBStorage) UpdateMetrics(ctx context.Context, metricsBatch []metrics.Metrics) error {
-	tx, err := s.conn.Begin(ctx)
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{})
 	if err != nil {
 		return err
 	}
@@ -120,29 +48,28 @@ func (s *DBStorage) UpdateMetrics(ctx context.Context, metricsBatch []metrics.Me
 		err = s.updateMetricInTx(ctx, tx, metric)
 		if err != nil {
 			//nolint:errcheck
-			tx.Rollback(ctx)
+			tx.Rollback()
 			return err
 		}
 	}
 
-	return tx.Commit(ctx)
+	return tx.Commit()
 }
 
-func (s *DBStorage) updateMetricInTx(ctx context.Context, tx pgx.Tx, metric metrics.Metrics) error {
+func (s *DBStorage) updateMetricInTx(ctx context.Context, tx *sql.Tx, metric metrics.Metrics) error {
 	mValue, err := metric.GetValue()
 	if err != nil {
 		return err
 	}
 
-	row := tx.QueryRow(ctx, `
+	row := tx.QueryRowContext(ctx, `
 		SELECT
-			m.id,
-			m.value
-		FROM metrics as m
-		LEFT JOIN metric_types mt ON m.type_id = mt.id
+			id,
+			value
+		FROM metrics
 		WHERE
-			m.name = @name AND
-			mt.name = @type
+			name = @name AND
+			type = @type
 	`, pgx.NamedArgs{
 		"name": metric.ID,
 		"type": metric.MType,
@@ -153,7 +80,7 @@ func (s *DBStorage) updateMetricInTx(ctx context.Context, tx pgx.Tx, metric metr
 	err = row.Scan(&mID, &mSavedValue)
 
 	if err != nil {
-		if !e.Is(err, pgx.ErrNoRows) {
+		if !e.Is(err, sql.ErrNoRows) {
 			return err
 		}
 		err = saveMetric(ctx, tx, metric.ID, metric.MType, mValue)
@@ -169,27 +96,23 @@ func (s *DBStorage) updateMetricInTx(ctx context.Context, tx pgx.Tx, metric metr
 	return err
 }
 
-func saveMetric(ctx context.Context, tx pgx.Tx, mName string, mType string, mValue float64) error {
-	mTypeID, err := getMetricTypeID(ctx, tx, mType)
-	if err != nil {
-		return err
-	}
-	_, err = tx.Exec(ctx, `
+func saveMetric(ctx context.Context, tx *sql.Tx, mName string, mType string, mValue float64) error {
+	_, err := tx.ExecContext(ctx, `
 		INSERT INTO metrics
-		(name, type_id, value)
+		(name, type, value)
 		VALUES
-		(@name, @type_id, @value)
+		(@name, @type, @value)
 	`, pgx.NamedArgs{
-		"name":    mName,
-		"type_id": mTypeID,
-		"value":   mValue,
+		"name":  mName,
+		"type":  mType,
+		"value": mValue,
 	})
 
 	return err
 }
 
-func updateMetric(ctx context.Context, tx pgx.Tx, mID int64, mValue float64) error {
-	_, err := tx.Exec(ctx, `
+func updateMetric(ctx context.Context, tx *sql.Tx, mID int64, mValue float64) error {
+	_, err := tx.ExecContext(ctx, `
 		UPDATE metrics
 		SET value = @value WHERE id = @id
 	`, pgx.NamedArgs{
@@ -200,34 +123,16 @@ func updateMetric(ctx context.Context, tx pgx.Tx, mID int64, mValue float64) err
 	return err
 }
 
-func getMetricTypeID(ctx context.Context, tx pgx.Tx, mType string) (int64, error) {
-	row := tx.QueryRow(ctx, `
-		SELECT
-			id
-		FROM metric_types
-		WHERE name = @type
-	`, pgx.NamedArgs{"type": mType})
-
-	var mTypeID int64
-	err := row.Scan(&mTypeID)
-	if err != nil {
-		return 0, errors.NewInvalidMetricType(fmt.Sprintf("Invalid metric type: %s", mType), err)
-	}
-
-	return mTypeID, nil
-}
-
 func (s *DBStorage) GetMetric(ctx context.Context, metric metrics.Metrics) (metrics.Metrics, error) {
-	row := s.conn.QueryRow(ctx, `
+	row := s.db.QueryRowContext(ctx, `
 		SELECT
-			m.name,
-			mt.name as type,
-			m.value
-		FROM metrics as m
-		LEFT JOIN metric_types mt ON m.type_id = mt.id
+			name,
+			type,
+			value
+		FROM metrics
 		WHERE
-			m.name = @name AND
-			mt.name = @type
+			name = @name AND
+			type = @type
 	`, pgx.NamedArgs{
 		"name": metric.ID,
 		"type": metric.MType,
@@ -251,15 +156,14 @@ func (s *DBStorage) GetMetric(ctx context.Context, metric metrics.Metrics) (metr
 }
 
 func (s *DBStorage) GetMetrics(ctx context.Context) (map[string]metrics.GaugeMetric, map[string]metrics.CounterMetric, error) {
-	rows, err := s.conn.Query(ctx, `
+	rows, err := s.db.QueryContext(ctx, `
 		SELECT
-			m.name,
-			mt.name as type,
-			m.value
-		FROM metrics as m
-		LEFT JOIN metric_types mt ON m.type_id = mt.id
+			name,
+			type,
+			value
+		FROM metrics
 		WHERE
-			mt.name IN(@gaugeType, @counterType)
+			type IN(@gaugeType, @counterType)
 	`, pgx.NamedArgs{
 		"gaugeType":   metrics.Gauge,
 		"counterType": metrics.Counter,
@@ -301,7 +205,7 @@ func (s *DBStorage) GetMetrics(ctx context.Context) (map[string]metrics.GaugeMet
 }
 
 func (s *DBStorage) Ping(ctx context.Context) error {
-	return s.conn.Ping(ctx)
+	return s.db.PingContext(ctx)
 }
 
 func (s *DBStorage) Restore(fname string) error {
@@ -309,5 +213,5 @@ func (s *DBStorage) Restore(fname string) error {
 }
 
 func (s *DBStorage) Save(fname string) error {
-	return fmt.Errorf("can not save database storage state to file")
+	return fmt.Errorf("can not save database storage state to file: %s", fname)
 }

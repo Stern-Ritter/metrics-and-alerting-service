@@ -1,8 +1,7 @@
 package server
 
 import (
-	"context"
-	"log"
+	"database/sql"
 	"net/http"
 	"strings"
 
@@ -14,7 +13,7 @@ import (
 	"github.com/go-chi/chi"
 	"go.uber.org/zap"
 
-	"github.com/jackc/pgx/v5"
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 func Run(config *config.ServerConfig, logger *logger.ServerLogger) error {
@@ -23,19 +22,14 @@ func Run(config *config.ServerConfig, logger *logger.ServerLogger) error {
 	var store storage.Storage
 
 	if isDatabaseEnabled {
-		conn, err := pgx.Connect(context.Background(), config.DatabaseDSN)
+		db, err := sql.Open("pgx", config.DatabaseDSN)
 		if err != nil {
 			logger.Fatal(err.Error(), zap.String("event", "connect database"))
 			return err
 		}
-		defer conn.Close(context.Background())
+		defer db.Close()
 
-		dbStorage := storage.NewDBStorage(conn, logger)
-		err = dbStorage.Bootstrap(context.Background())
-		if err != nil {
-			log.Fatal(err.Error(), zap.String("event", "init database schema"))
-			return err
-		}
+		dbStorage := storage.NewDBStorage(db, logger)
 		logger.Info("Success", zap.String("event", "init database schema"))
 		store = dbStorage
 		logger.Info("Success", zap.String("event", "create database storage"))
@@ -45,6 +39,13 @@ func Run(config *config.ServerConfig, logger *logger.ServerLogger) error {
 	}
 
 	mService := service.NewMetricService(store, logger)
+	if isDatabaseEnabled {
+		err := mService.MigrateDatabase(config.DatabaseDSN)
+		if err != nil {
+			logger.Fatal(err.Error(), zap.String("event", "migrate database"))
+		}
+	}
+
 	server := service.NewServer(mService, config, logger)
 
 	isFileStorageEnabled := len(strings.TrimSpace(config.FileStoragePath)) != 0
