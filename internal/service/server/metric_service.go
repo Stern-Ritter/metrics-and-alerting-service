@@ -2,39 +2,41 @@ package server
 
 import (
 	"context"
-	e "errors"
+	"errors"
 	"fmt"
-	"github.com/Stern-Ritter/metrics-and-alerting-service/migrations"
-	"github.com/cenkalti/backoff/v4"
-	"github.com/pressly/goose/v3"
 	"time"
 
-	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
+	"github.com/cenkalti/backoff/v4"
+	"github.com/pressly/goose/v3"
+
+	"github.com/Stern-Ritter/metrics-and-alerting-service/migrations"
+
+	"github.com/jackc/pgerrcode"
+	"github.com/jackc/pgx/v5/pgconn"
+	"go.uber.org/zap"
+
+	er "github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
 	logger "github.com/Stern-Ritter/metrics-and-alerting-service/internal/logger/server"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
 	storage "github.com/Stern-Ritter/metrics-and-alerting-service/internal/storage/server"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/utils"
-	"github.com/jackc/pgerrcode"
-	"github.com/jackc/pgx/v5/pgconn"
-	"go.uber.org/zap"
 )
 
-var (
-	storageRetryInterval = backoff.NewExponentialBackOff(
+type MetricService struct {
+	storage              storage.Storage
+	logger               *logger.ServerLogger
+	storageRetryInterval *backoff.ExponentialBackOff
+}
+
+func NewMetricService(storage storage.Storage, logger *logger.ServerLogger) *MetricService {
+	storageRetryInterval := backoff.NewExponentialBackOff(
 		backoff.WithInitialInterval(1*time.Second),
 		backoff.WithRandomizationFactor(0),
 		backoff.WithMultiplier(3),
 		backoff.WithMaxInterval(5*time.Second),
 		backoff.WithMaxElapsedTime(10*time.Second))
-)
 
-type MetricService struct {
-	Storage storage.Storage
-	Logger  *logger.ServerLogger
-}
-
-func NewMetricService(storage storage.Storage, logger *logger.ServerLogger) *MetricService {
-	return &MetricService{Storage: storage, Logger: logger}
+	return &MetricService{storage: storage, logger: logger, storageRetryInterval: storageRetryInterval}
 }
 
 func (s *MetricService) UpdateMetricWithPathVars(ctx context.Context, mName string, mType string,
@@ -45,9 +47,9 @@ func (s *MetricService) UpdateMetricWithPathVars(ctx context.Context, mName stri
 	}
 
 	update := func() error {
-		err = s.Storage.UpdateMetric(ctx, m)
+		err = s.storage.UpdateMetric(ctx, m)
 		if isDatabaseConnectionError(err) {
-			s.Logger.Error(err.Error(), zap.String("event", "failed try update metric"))
+			s.logger.Error(err.Error(), zap.String("event", "failed try update metric"))
 			return err
 		} else if err != nil {
 			return backoff.Permanent(err)
@@ -55,16 +57,16 @@ func (s *MetricService) UpdateMetricWithPathVars(ctx context.Context, mName stri
 		return nil
 	}
 
-	if err = backoff.Retry(update, storageRetryInterval); err != nil {
+	if err = backoff.Retry(update, s.storageRetryInterval); err != nil {
 		return err
 	}
 
 	if isSyncSaveStorageState {
 		err := s.SaveStateToFile(filePath)
 		if err != nil {
-			s.Logger.Error(err.Error(), zap.String("event", "sync save to file storage"))
+			s.logger.Error(err.Error(), zap.String("event", "sync save to file storage"))
 		} else {
-			s.Logger.Info("Success sync save to file storage", zap.String("event", "sync save to file storage"))
+			s.logger.Info("Success sync save to file storage", zap.String("event", "sync save to file storage"))
 		}
 	}
 	return nil
@@ -74,25 +76,25 @@ func (s *MetricService) UpdateMetricWithBody(ctx context.Context, metric metrics
 	filePath string) (metrics.Metrics, error) {
 
 	update := func() error {
-		err := s.Storage.UpdateMetric(ctx, metric)
+		err := s.storage.UpdateMetric(ctx, metric)
 		if isDatabaseConnectionError(err) {
-			s.Logger.Error(err.Error(), zap.String("event", "failed try update metric"))
+			s.logger.Error(err.Error(), zap.String("event", "failed try update metric"))
 			return err
 		} else if err != nil {
 			return backoff.Permanent(err)
 		}
 		return nil
 	}
-	if err := backoff.Retry(update, storageRetryInterval); err != nil {
+	if err := backoff.Retry(update, s.storageRetryInterval); err != nil {
 		return metrics.Metrics{}, err
 	}
 
 	var m metrics.Metrics
 	var err error
 	get := func() error {
-		m, err = s.Storage.GetMetric(ctx, metric)
+		m, err = s.storage.GetMetric(ctx, metric)
 		if isDatabaseConnectionError(err) {
-			s.Logger.Error(err.Error(), zap.String("event", "failed try get metric"))
+			s.logger.Error(err.Error(), zap.String("event", "failed try get metric"))
 			return err
 		} else if err != nil {
 			return backoff.Permanent(err)
@@ -100,16 +102,16 @@ func (s *MetricService) UpdateMetricWithBody(ctx context.Context, metric metrics
 		return nil
 	}
 
-	if err := backoff.Retry(get, storageRetryInterval); err != nil {
+	if err := backoff.Retry(get, s.storageRetryInterval); err != nil {
 		return metrics.Metrics{}, err
 	}
 
 	if isSyncSaveStorageState {
 		err := s.SaveStateToFile(filePath)
 		if err != nil {
-			s.Logger.Error(err.Error(), zap.String("event", "sync save to file storage"))
+			s.logger.Error(err.Error(), zap.String("event", "sync save to file storage"))
 		} else {
-			s.Logger.Info("Success sync save to file storage", zap.String("event", "sync save to file storage"))
+			s.logger.Info("Success sync save to file storage", zap.String("event", "sync save to file storage"))
 		}
 	}
 
@@ -120,9 +122,9 @@ func (s *MetricService) UpdateMetricsBatchWithBody(ctx context.Context, metrics 
 	isSyncSaveStorageState bool, filePath string) error {
 
 	updateBatch := func() error {
-		err := s.Storage.UpdateMetrics(ctx, metrics)
+		err := s.storage.UpdateMetrics(ctx, metrics)
 		if isDatabaseConnectionError(err) {
-			s.Logger.Error(err.Error(), zap.String("event", "failed try update metric batch"))
+			s.logger.Error(err.Error(), zap.String("event", "failed try update metric batch"))
 			return err
 		} else if err != nil {
 			return backoff.Permanent(err)
@@ -130,16 +132,16 @@ func (s *MetricService) UpdateMetricsBatchWithBody(ctx context.Context, metrics 
 		return nil
 	}
 
-	if err := backoff.Retry(updateBatch, storageRetryInterval); err != nil {
+	if err := backoff.Retry(updateBatch, s.storageRetryInterval); err != nil {
 		return err
 	}
 
 	if isSyncSaveStorageState {
 		err := s.SaveStateToFile(filePath)
 		if err != nil {
-			s.Logger.Error(err.Error(), zap.String("event", "sync save to file storage"))
+			s.logger.Error(err.Error(), zap.String("event", "sync save to file storage"))
 		} else {
-			s.Logger.Info("Success sync save to file storage", zap.String("event", "sync save to file storage"))
+			s.logger.Info("Success sync save to file storage", zap.String("event", "sync save to file storage"))
 		}
 	}
 	return nil
@@ -149,9 +151,9 @@ func (s *MetricService) GetMetricValueByTypeAndName(ctx context.Context, mType s
 	var m metrics.Metrics
 	var err error
 	get := func() error {
-		m, err = s.Storage.GetMetric(ctx, metrics.Metrics{ID: mName, MType: mType})
+		m, err = s.storage.GetMetric(ctx, metrics.Metrics{ID: mName, MType: mType})
 		if isDatabaseConnectionError(err) {
-			s.Logger.Error(err.Error(), zap.String("event", "failed try get metric"))
+			s.logger.Error(err.Error(), zap.String("event", "failed try get metric"))
 			return err
 		} else if err != nil {
 			return backoff.Permanent(err)
@@ -159,7 +161,7 @@ func (s *MetricService) GetMetricValueByTypeAndName(ctx context.Context, mType s
 		return nil
 	}
 
-	if err := backoff.Retry(get, storageRetryInterval); err != nil {
+	if err := backoff.Retry(get, s.storageRetryInterval); err != nil {
 		return "", err
 	}
 
@@ -169,7 +171,7 @@ func (s *MetricService) GetMetricValueByTypeAndName(ctx context.Context, mType s
 	case metrics.Counter:
 		return utils.FormatCounterMetricValue(*m.Delta), nil
 	default:
-		return "", errors.NewInvalidMetricType(fmt.Sprintf("Invalid metric type: %s", m.MType), nil)
+		return "", er.NewInvalidMetricType(fmt.Sprintf("Invalid metric type: %s", m.MType), nil)
 	}
 }
 
@@ -177,9 +179,9 @@ func (s *MetricService) GetMetricHandlerWithBody(ctx context.Context, metric met
 	var m metrics.Metrics
 	var err error
 	get := func() error {
-		m, err = s.Storage.GetMetric(ctx, metric)
+		m, err = s.storage.GetMetric(ctx, metric)
 		if isDatabaseConnectionError(err) {
-			s.Logger.Error(err.Error(), zap.String("event", "failed try get metric"))
+			s.logger.Error(err.Error(), zap.String("event", "failed try get metric"))
 			return err
 		} else if err != nil {
 			return backoff.Permanent(err)
@@ -187,7 +189,7 @@ func (s *MetricService) GetMetricHandlerWithBody(ctx context.Context, metric met
 		return nil
 	}
 
-	if err := backoff.Retry(get, storageRetryInterval); err != nil {
+	if err := backoff.Retry(get, s.storageRetryInterval); err != nil {
 		return metrics.Metrics{}, err
 	}
 
@@ -201,9 +203,9 @@ func (s *MetricService) GetMetrics(ctx context.Context) (map[string]metrics.Gaug
 	var err error
 
 	getAll := func() error {
-		gauges, counters, err = s.Storage.GetMetrics(ctx)
+		gauges, counters, err = s.storage.GetMetrics(ctx)
 		if isDatabaseConnectionError(err) {
-			s.Logger.Error(err.Error(), zap.String("event", "failed try get metrics"))
+			s.logger.Error(err.Error(), zap.String("event", "failed try get metrics"))
 			return err
 		} else if err != nil {
 			return backoff.Permanent(err)
@@ -211,17 +213,17 @@ func (s *MetricService) GetMetrics(ctx context.Context) (map[string]metrics.Gaug
 		return nil
 	}
 
-	err = backoff.Retry(getAll, storageRetryInterval)
+	err = backoff.Retry(getAll, s.storageRetryInterval)
 
 	return gauges, counters, err
 }
 
 func (s *MetricService) RestoreStateFromFile(filePath string) error {
 	restore := func() error {
-		err := s.Storage.Restore(filePath)
-		var storageErr errors.FileUnavailable
-		if e.As(err, &storageErr) {
-			s.Logger.Error(err.Error(), zap.String("event", "failed try restore storage state from file"))
+		err := s.storage.Restore(filePath)
+		var storageErr er.FileUnavailable
+		if errors.As(err, &storageErr) {
+			s.logger.Error(err.Error(), zap.String("event", "failed try restore storage state from file"))
 			return err
 		} else if err != nil {
 			return backoff.Permanent(err)
@@ -229,15 +231,15 @@ func (s *MetricService) RestoreStateFromFile(filePath string) error {
 		return nil
 	}
 
-	return backoff.Retry(restore, storageRetryInterval)
+	return backoff.Retry(restore, s.storageRetryInterval)
 }
 
 func (s *MetricService) SaveStateToFile(filePath string) error {
 	save := func() error {
-		err := s.Storage.Save(filePath)
-		var storageErr errors.FileUnavailable
-		if e.As(err, &storageErr) {
-			s.Logger.Error(err.Error(), zap.String("event", "failed try async save to file storage"))
+		err := s.storage.Save(filePath)
+		var storageErr er.FileUnavailable
+		if errors.As(err, &storageErr) {
+			s.logger.Error(err.Error(), zap.String("event", "failed try async save to file storage"))
 			return err
 		} else if err != nil {
 			return backoff.Permanent(err)
@@ -245,7 +247,7 @@ func (s *MetricService) SaveStateToFile(filePath string) error {
 		return nil
 	}
 
-	return backoff.Retry(save, storageRetryInterval)
+	return backoff.Retry(save, s.storageRetryInterval)
 }
 
 func (s *MetricService) SetSaveStateToFileInterval(filePath string, storeInterval int) {
@@ -253,16 +255,16 @@ func (s *MetricService) SetSaveStateToFileInterval(filePath string, storeInterva
 		return
 	}
 
-	s.Logger.Info("Start async save to file storage", zap.String("event", "start async save to file storage"),
+	s.logger.Info("Start async save to file storage", zap.String("event", "start async save to file storage"),
 		zap.String("file path", filePath), zap.Int("interval", storeInterval))
 	go func() {
 		ticker := time.NewTicker(time.Duration(storeInterval) * time.Second)
 		for range ticker.C {
 			err := s.SaveStateToFile(filePath)
 			if err != nil {
-				s.Logger.Error(err.Error(), zap.String("event", "async save to file storage"))
+				s.logger.Error(err.Error(), zap.String("event", "async save to file storage"))
 			} else {
-				s.Logger.Info("Success async save to file storage", zap.String("event", "async save to file storage"))
+				s.logger.Info("Success async save to file storage", zap.String("event", "async save to file storage"))
 			}
 		}
 	}()
@@ -291,10 +293,10 @@ func (s *MetricService) MigrateDatabase(databaseDsn string) error {
 }
 
 func (s *MetricService) PingDatabase(ctx context.Context) error {
-	return s.Storage.Ping(ctx)
+	return s.storage.Ping(ctx)
 }
 
 func isDatabaseConnectionError(err error) bool {
 	var pgErr *pgconn.PgError
-	return err != nil && e.As(err, &pgErr) && pgerrcode.IsConnectionException(pgErr.Code)
+	return err != nil && errors.As(err, &pgErr) && pgerrcode.IsConnectionException(pgErr.Code)
 }

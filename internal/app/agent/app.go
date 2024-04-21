@@ -23,10 +23,10 @@ func Run(a *service.Agent) error {
 	time.AfterFunc(time.Hour, cancel)
 
 	updateMetricsTask := func() {
-		service.UpdateMetrics(a.Cache, a.Monitor, a.Random, a.Logger)
+		a.UpdateMetrics()
 	}
 	sendMetricsTask := func() {
-		service.SendMetrics(a.HTTPClient, a.Config.SendMetricsURL, a.Config.SendMetricsEndPoint, a.Cache, a.Logger)
+		a.SendMetrics()
 	}
 
 	service.SetInterval(ctx, &wg, updateMetricsTask, time.Duration(a.Config.UpdateMetricsInterval)*time.Second)

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
+	er "github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
 )
 
 type Metrics struct {
@@ -31,7 +31,7 @@ func NewMetricsWithStringValue(mName string, mTypeName string, value string) (Me
 		return Metrics{ID: mName, MType: mTypeName, Delta: &v}, nil
 
 	default:
-		return Metrics{}, errors.NewInvalidMetricType(fmt.Sprintf("Invalid metric type: %s", mTypeName), nil)
+		return Metrics{}, er.NewInvalidMetricType(fmt.Sprintf("Invalid metric type: %s", mTypeName), nil)
 	}
 }
 
@@ -46,7 +46,7 @@ func NewMetricsWithNumberValue(mName string, mTypeName string, value float64) (M
 		return Metrics{ID: mName, MType: mTypeName, Delta: &v}, nil
 
 	default:
-		return Metrics{}, errors.NewInvalidMetricType(fmt.Sprintf("Invalid metric type: %s", mTypeName), nil)
+		return Metrics{}, er.NewInvalidMetricType(fmt.Sprintf("Invalid metric type: %s", mTypeName), nil)
 	}
 }
 
@@ -57,7 +57,7 @@ func (m Metrics) GetValue() (float64, error) {
 	case Counter:
 		return float64(*m.Delta), nil
 	default:
-		return 0, errors.NewInvalidMetricType(fmt.Sprintf("Invalid metric type: %s", m.MType), nil)
+		return 0, er.NewInvalidMetricType(fmt.Sprintf("Invalid metric type: %s", m.MType), nil)
 	}
 }
 
@@ -86,7 +86,7 @@ func CounterMetricToMetrics(m CounterMetric) Metrics {
 func parseGaugeMetricValue(v string) (float64, error) {
 	value, err := strconv.ParseFloat(v, 64)
 	if err != nil {
-		return 0, errors.NewInvalidMetricValue(
+		return 0, er.NewInvalidMetricValue(
 			fmt.Sprintf("The value for the %s metric should be of float64 type", Gauge), err)
 	}
 
@@ -96,7 +96,7 @@ func parseGaugeMetricValue(v string) (float64, error) {
 func parseCounterMetricValue(v string) (int64, error) {
 	value, err := strconv.ParseInt(v, 10, 64)
 	if err != nil {
-		return 0, errors.NewInvalidMetricValue(
+		return 0, er.NewInvalidMetricValue(
 			fmt.Sprintf("The value for the %s metric should be of int64 type", Counter), err)
 	}
 

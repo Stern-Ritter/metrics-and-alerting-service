@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
+	"go.uber.org/zap"
+
+	er "github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/monitors"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/utils"
-	"go.uber.org/zap"
 )
 
 type AgentCache interface {
@@ -103,7 +104,7 @@ func (c *AgentMemCache) ResetMetricValue(metricType, metricName string) error {
 		c.counters[savedMetric.Name] = savedMetric
 
 	default:
-		return errors.NewInvalidMetricType(fmt.Sprintf("Invalid metric type: %s", metricType), nil)
+		return er.NewInvalidMetricType(fmt.Sprintf("Invalid metric type: %s", metricType), nil)
 	}
 	return nil
 }
@@ -166,7 +167,7 @@ func (c *AgentMemCache) updateMonitorMetric(metric metrics.GaugeMetric) {
 func (c *AgentMemCache) checkGaugeMetricNameWhenUpdate(name string) error {
 	_, exists := c.gauges[name]
 	if !exists {
-		return errors.NewInvalidMetricName(fmt.Sprintf("Invalid metric name: %s", name), nil)
+		return er.NewInvalidMetricName(fmt.Sprintf("Invalid metric name: %s", name), nil)
 	}
 	return nil
 }
@@ -174,7 +175,7 @@ func (c *AgentMemCache) checkGaugeMetricNameWhenUpdate(name string) error {
 func (c *AgentMemCache) checkCounterMetricNameWhenUpdate(name string) error {
 	_, exists := c.counters[name]
 	if !exists {
-		return errors.NewInvalidMetricName(fmt.Sprintf("Invalid metric name: %s", name), nil)
+		return er.NewInvalidMetricName(fmt.Sprintf("Invalid metric name: %s", name), nil)
 	}
 	return nil
 }
@@ -182,7 +183,7 @@ func (c *AgentMemCache) checkCounterMetricNameWhenUpdate(name string) error {
 func (c *AgentMemCache) checkGaugeMetricNameWhenReset(name string) error {
 	_, exists := c.gauges[name]
 	if !exists {
-		return errors.NewInvalidMetricName(fmt.Sprintf("Gauge metric with name: %s not exists", name), nil)
+		return er.NewInvalidMetricName(fmt.Sprintf("Gauge metric with name: %s not exists", name), nil)
 	}
 
 	return nil
@@ -191,7 +192,7 @@ func (c *AgentMemCache) checkGaugeMetricNameWhenReset(name string) error {
 func (c *AgentMemCache) checkCounterMetricNameWhenReset(name string) error {
 	_, exists := c.counters[name]
 	if !exists {
-		return errors.NewInvalidMetricName(fmt.Sprintf("Counter metric with name: %s not exists", name), nil)
+		return er.NewInvalidMetricName(fmt.Sprintf("Counter metric with name: %s not exists", name), nil)
 	}
 
 	return nil

@@ -8,7 +8,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
+	er "github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
 	logger "github.com/Stern-Ritter/metrics-and-alerting-service/internal/logger/server"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/utils"
@@ -52,7 +52,7 @@ func (s *MemoryStorage) UpdateMetric(ctx context.Context, metric metrics.Metrics
 			return err
 		}
 	default:
-		return errors.NewInvalidMetricType(fmt.Sprintf("Invalid metric type: %s", metric.MType), nil)
+		return er.NewInvalidMetricType(fmt.Sprintf("Invalid metric type: %s", metric.MType), nil)
 	}
 
 	return nil
@@ -74,7 +74,7 @@ func (s *MemoryStorage) UpdateMetrics(ctx context.Context, metricsBatch []metric
 				return err
 			}
 		default:
-			return errors.NewInvalidMetricType(fmt.Sprintf("Invalid metric type: %s", metric.MType), nil)
+			return er.NewInvalidMetricType(fmt.Sprintf("Invalid metric type: %s", metric.MType), nil)
 		}
 	}
 
@@ -116,7 +116,7 @@ func (s *MemoryStorage) GetMetric(ctx context.Context, metric metrics.Metrics) (
 		m, exists := s.gauges[metric.ID]
 		s.gaugesMu.Unlock()
 		if !exists {
-			return metrics.Metrics{}, errors.NewInvalidMetricName(fmt.Sprintf("Gauge metric with name: %s not exists", metric.ID), nil)
+			return metrics.Metrics{}, er.NewInvalidMetricName(fmt.Sprintf("Gauge metric with name: %s not exists", metric.ID), nil)
 		}
 		return metrics.GaugeMetricToMetrics(m), nil
 
@@ -125,12 +125,12 @@ func (s *MemoryStorage) GetMetric(ctx context.Context, metric metrics.Metrics) (
 		m, exists := s.counters[metric.ID]
 		s.countersMu.Unlock()
 		if !exists {
-			return metrics.Metrics{}, errors.NewInvalidMetricName(fmt.Sprintf("Counter metric with name: %s not exists", metric.ID), nil)
+			return metrics.Metrics{}, er.NewInvalidMetricName(fmt.Sprintf("Counter metric with name: %s not exists", metric.ID), nil)
 		}
 		return metrics.CounterMetricToMetrics(m), nil
 
 	default:
-		return metrics.Metrics{}, errors.NewInvalidMetricType(fmt.Sprintf("Invalid metric type: %s", metric.MType), nil)
+		return metrics.Metrics{}, er.NewInvalidMetricType(fmt.Sprintf("Invalid metric type: %s", metric.MType), nil)
 	}
 }
 
@@ -153,7 +153,7 @@ func (s *MemoryStorage) Ping(ctx context.Context) error {
 func (s *MemoryStorage) Restore(fname string) error {
 	file, err := os.OpenFile(fname, os.O_RDONLY|os.O_CREATE, 0644)
 	if err != nil {
-		return errors.NewFileUnavailable(fmt.Sprintf("can not open file %s to restore state: %v", fname, err), err)
+		return er.NewFileUnavailable(fmt.Sprintf("can not open file %s to restore state: %v", fname, err), err)
 	}
 	defer file.Close()
 
@@ -187,7 +187,7 @@ func (s *MemoryStorage) Restore(fname string) error {
 func (s *MemoryStorage) Save(fname string) error {
 	file, err := os.OpenFile(fname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
-		return errors.NewFileUnavailable(fmt.Sprintf("can not open file %s to save state: %v", fname, err), err)
+		return er.NewFileUnavailable(fmt.Sprintf("can not open file %s to save state: %v", fname, err), err)
 	}
 	defer file.Close()
 

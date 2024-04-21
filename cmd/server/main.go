@@ -3,10 +3,11 @@ package main
 import (
 	"log"
 
+	"go.uber.org/zap"
+
 	app "github.com/Stern-Ritter/metrics-and-alerting-service/internal/app/server"
 	config "github.com/Stern-Ritter/metrics-and-alerting-service/internal/config/server"
 	logger "github.com/Stern-Ritter/metrics-and-alerting-service/internal/logger/server"
-	"go.uber.org/zap"
 )
 
 func main() {

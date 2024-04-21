@@ -12,8 +12,8 @@ type Storage interface {
 	GetMetric(ctx context.Context, metric metrics.Metrics) (metrics.Metrics, error)
 	GetMetrics(ctx context.Context) (map[string]metrics.GaugeMetric, map[string]metrics.CounterMetric, error)
 
-	Restore(fname string) error
-	Save(fname string) error
+	Restore(fName string) error
+	Save(fName string) error
 
 	Ping(ctx context.Context) error
 }

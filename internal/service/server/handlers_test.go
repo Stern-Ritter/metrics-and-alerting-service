@@ -8,15 +8,16 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/config/server"
-	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
-	logger "github.com/Stern-Ritter/metrics-and-alerting-service/internal/logger/server"
-	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
 	"github.com/go-chi/chi"
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	gomock "go.uber.org/mock/gomock"
+	"go.uber.org/mock/gomock"
+
+	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/config/server"
+	er "github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
+	logger "github.com/Stern-Ritter/metrics-and-alerting-service/internal/logger/server"
+	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
 )
 
 func addURLParams(req *http.Request, params map[string]string) *http.Request {
@@ -168,7 +169,7 @@ func TestUpdateMetricHandlerWithBody(t *testing.T) {
 			url:                      "/update",
 			body:                     `{ "id": "Alloc", "type": "unknown", "value": 22.2 }`,
 			useStorageUpdateMetric:   true,
-			storageUpdateMetricError: errors.NewInvalidMetricType("Invalid metric type: unknown", nil),
+			storageUpdateMetricError: er.NewInvalidMetricType("Invalid metric type: unknown", nil),
 			useStorageGetMetric:      false,
 			want: want{
 				code: http.StatusBadRequest,
@@ -277,7 +278,7 @@ func TestUpdateMetricsBatchHandlerWithBody(t *testing.T) {
 			url:                       "/updates",
 			body:                      `[{ "id": "Alloc", "type": "unknown", "value": 22.2 }]`,
 			useStorageUpdateMetrics:   true,
-			storageUpdateMetricsError: errors.NewInvalidMetricType("Invalid metric type: unknown", nil),
+			storageUpdateMetricsError: er.NewInvalidMetricType("Invalid metric type: unknown", nil),
 			want: want{
 				code: http.StatusBadRequest,
 				body: "Invalid metric type: unknown\n",
@@ -396,7 +397,7 @@ func TestGetMetricHandlerWithPathVars(t *testing.T) {
 			method:                http.MethodPost,
 			url:                   "/update",
 			metric:                metrics.Metrics{},
-			storageGetMetricError: errors.NewInvalidMetricType("Invalid metric type: unknown", nil),
+			storageGetMetricError: er.NewInvalidMetricType("Invalid metric type: unknown", nil),
 			want: want{
 				code: http.StatusNotFound,
 				body: "Invalid metric type: unknown\n",
@@ -407,7 +408,7 @@ func TestGetMetricHandlerWithPathVars(t *testing.T) {
 			method:                http.MethodPost,
 			url:                   "/update",
 			metric:                metrics.Metrics{},
-			storageGetMetricError: errors.NewInvalidMetricName("Gauge metric with name: unknown not exists", nil),
+			storageGetMetricError: er.NewInvalidMetricName("Gauge metric with name: unknown not exists", nil),
 			want: want{
 				code: http.StatusNotFound,
 				body: "Gauge metric with name: unknown not exists\n",
@@ -493,7 +494,7 @@ func TestGetMetricHandlerWithBody(t *testing.T) {
 			body:                  `{ "id": "Alloc", "type": "unknown" }`,
 			useStorage:            true,
 			metric:                metrics.Metrics{},
-			storageGetMetricError: errors.NewInvalidMetricType("Invalid metric type: unknown", nil),
+			storageGetMetricError: er.NewInvalidMetricType("Invalid metric type: unknown", nil),
 			want: want{
 				code: http.StatusNotFound,
 				body: "Invalid metric type: unknown\n",

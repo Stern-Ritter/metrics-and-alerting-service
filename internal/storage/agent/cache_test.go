@@ -4,12 +4,13 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	er "github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
 	logger "github.com/Stern-Ritter/metrics-and-alerting-service/internal/logger/agent"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/monitors"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -59,7 +60,7 @@ func TestUpdateGaugeMetric(t *testing.T) {
 				metricValue: parsedValidGaugeMetricValue,
 			},
 			gaugesInitState: make(map[string]metrics.GaugeMetric),
-			err:             errors.InvalidMetricName{},
+			err:             er.InvalidMetricName{},
 		},
 
 		{
@@ -116,7 +117,7 @@ func TestUpdateCounterMetric(t *testing.T) {
 				metricValue: parsedValidCounterMetricValue,
 			},
 			countersInitState: make(map[string]metrics.CounterMetric),
-			err:               errors.InvalidMetricName{},
+			err:               er.InvalidMetricName{},
 		},
 
 		{
@@ -281,7 +282,7 @@ func TestResetMetricValue(t *testing.T) {
 
 			gaugesUpdatedState:   make(map[string]metrics.GaugeMetric),
 			countersUpdatedState: make(map[string]metrics.CounterMetric),
-			storageError:         errors.InvalidMetricType{},
+			storageError:         er.InvalidMetricType{},
 		},
 		{
 			name: "should return error when reset non existing gauge metric",
@@ -295,7 +296,7 @@ func TestResetMetricValue(t *testing.T) {
 
 			gaugesUpdatedState:   make(map[string]metrics.GaugeMetric),
 			countersUpdatedState: make(map[string]metrics.CounterMetric),
-			storageError:         errors.InvalidMetricName{},
+			storageError:         er.InvalidMetricName{},
 		},
 
 		{
@@ -329,7 +330,7 @@ func TestResetMetricValue(t *testing.T) {
 
 			gaugesUpdatedState:   make(map[string]metrics.GaugeMetric),
 			countersUpdatedState: make(map[string]metrics.CounterMetric),
-			storageError:         errors.InvalidMetricName{},
+			storageError:         er.InvalidMetricName{},
 		},
 
 		{

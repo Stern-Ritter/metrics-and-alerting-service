@@ -3,6 +3,9 @@ package main
 import (
 	"log"
 
+	"github.com/go-resty/resty/v2"
+	"go.uber.org/zap"
+
 	app "github.com/Stern-Ritter/metrics-and-alerting-service/internal/app/agent"
 	config "github.com/Stern-Ritter/metrics-and-alerting-service/internal/config/agent"
 	logger "github.com/Stern-Ritter/metrics-and-alerting-service/internal/logger/agent"
@@ -11,8 +14,6 @@ import (
 	service "github.com/Stern-Ritter/metrics-and-alerting-service/internal/service/agent"
 	storage "github.com/Stern-Ritter/metrics-and-alerting-service/internal/storage/agent"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/utils"
-	"github.com/go-resty/resty/v2"
-	"go.uber.org/zap"
 )
 
 func main() {

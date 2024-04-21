@@ -6,11 +6,12 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
-	logger "github.com/Stern-Ritter/metrics-and-alerting-service/internal/logger/server"
-	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	er "github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
+	logger "github.com/Stern-Ritter/metrics-and-alerting-service/internal/logger/server"
+	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
 )
 
 var (
@@ -51,7 +52,7 @@ func TestUpdateMetric(t *testing.T) {
 
 			gaugesUpdatedState:   make(map[string]metrics.GaugeMetric),
 			countersUpdatedState: make(map[string]metrics.CounterMetric),
-			storageError:         errors.InvalidMetricType{},
+			storageError:         er.InvalidMetricType{},
 		},
 		{
 			name:              "should correct create metric when update non existing gauge metric with valid value",
@@ -109,9 +110,9 @@ func TestUpdateMetric(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			logger, err := logger.Initialize("info")
+			sLogger, err := logger.Initialize("info")
 			require.NoError(t, err, "Error init logger")
-			metricsStorage := NewMemoryStorage(logger)
+			metricsStorage := NewMemoryStorage(sLogger)
 			metricsStorage.SetGaugeMetircs(tt.gaugesInitState)
 			metricsStorage.SetCounterMetrics(tt.countersInitState)
 
@@ -153,7 +154,7 @@ func TestUpdateMetrics(t *testing.T) {
 
 			gaugesUpdatedState:   make(map[string]metrics.GaugeMetric),
 			countersUpdatedState: make(map[string]metrics.CounterMetric),
-			storageError:         errors.InvalidMetricType{},
+			storageError:         er.InvalidMetricType{},
 		},
 		{
 			name:              "should correct create metric when update metrics batch with non existing gauge metric with valid value",
@@ -247,9 +248,9 @@ func TestUpdateMetrics(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			logger, err := logger.Initialize("info")
+			sLogger, err := logger.Initialize("info")
 			require.NoError(t, err, "Error init logger")
-			metricsStorage := NewMemoryStorage(logger)
+			metricsStorage := NewMemoryStorage(sLogger)
 			metricsStorage.SetGaugeMetircs(tt.gaugesInitState)
 			metricsStorage.SetCounterMetrics(tt.countersInitState)
 
@@ -291,7 +292,7 @@ func TestGetMetric(t *testing.T) {
 			gaugesInitState:   map[string]metrics.GaugeMetric{"first": metrics.NewGauge("first", 64)},
 			countersInitState: make(map[string]metrics.CounterMetric),
 			requestedMetric:   metrics.Metrics{ID: "second", MType: string(metrics.Gauge)},
-			err:               errors.InvalidMetricName{},
+			err:               er.InvalidMetricName{},
 		},
 		{
 			name:              "should correct return counter metric when get existing counter metric",
@@ -307,15 +308,15 @@ func TestGetMetric(t *testing.T) {
 			gaugesInitState:   make(map[string]metrics.GaugeMetric),
 			countersInitState: map[string]metrics.CounterMetric{"first": metrics.NewCounter("first", 64)},
 			requestedMetric:   metrics.Metrics{ID: "second", MType: string(metrics.Counter)},
-			err:               errors.InvalidMetricName{},
+			err:               er.InvalidMetricName{},
 		},
 	}
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			logger, err := logger.Initialize("info")
+			sLogger, err := logger.Initialize("info")
 			require.NoError(t, err, "Error init logger")
-			metricsStorage := NewMemoryStorage(logger)
+			metricsStorage := NewMemoryStorage(sLogger)
 			metricsStorage.SetGaugeMetircs(tt.gaugesInitState)
 			metricsStorage.SetCounterMetrics(tt.countersInitState)
 
@@ -366,9 +367,9 @@ func TestSaveAndLoadMetrics(t *testing.T) {
 			file, err := os.CreateTemp(t.TempDir(), "file-storage-*.json")
 			require.NoError(t, err)
 
-			logger, err := logger.Initialize("info")
+			sLogger, err := logger.Initialize("info")
 			require.NoError(t, err, "Error init logger")
-			metricsStorage := NewMemoryStorage(logger)
+			metricsStorage := NewMemoryStorage(sLogger)
 			metricsStorage.SetGaugeMetircs(tt.gaugesInitState)
 			metricsStorage.SetCounterMetrics(tt.countersInitState)
 

@@ -3,48 +3,36 @@ package agent
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
-	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
-	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/monitors"
-	cache "github.com/Stern-Ritter/metrics-and-alerting-service/internal/storage/agent"
-	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/utils"
-	"github.com/cenkalti/backoff/v4"
-	"github.com/go-resty/resty/v2"
-	"go.uber.org/zap"
 	"net/http"
 	"runtime"
 	"strings"
-	"time"
+
+	"github.com/cenkalti/backoff/v4"
+	"go.uber.org/zap"
+
+	er "github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
+	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
 )
 
-var (
-	sendMetricsBatchRetryIntervals = backoff.NewExponentialBackOff(
-		backoff.WithInitialInterval(1*time.Second),
-		backoff.WithRandomizationFactor(0),
-		backoff.WithMultiplier(3),
-		backoff.WithMaxInterval(5*time.Second),
-		backoff.WithMaxElapsedTime(10*time.Second))
-)
-
-func UpdateMetrics(cache cache.AgentCache, monitor *monitors.Monitor, rand *utils.Random, logger *zap.Logger) {
+func (a *Agent) UpdateMetrics() {
 	var ms runtime.MemStats
 	runtime.ReadMemStats(&ms)
-	monitor.Update(&ms)
-	randomValue, _ := rand.Float(0.1, 99.99)
+	a.Monitor.Update(&ms)
+	randomValue, _ := a.Random.Float(0.1, 99.99)
 
-	cache.UpdateMonitorMetrics(monitor)
-	_, err := cache.UpdateGaugeMetric(metrics.NewGauge("RandomValue", randomValue))
+	a.Cache.UpdateMonitorMetrics(a.Monitor)
+	_, err := a.Cache.UpdateGaugeMetric(metrics.NewGauge("RandomValue", randomValue))
 	if err != nil {
-		logger.Error(err.Error(), zap.String("event", "update RandomValue gauge metric"))
+		a.Logger.Error(err.Error(), zap.String("event", "update RandomValue gauge metric"))
 	}
 }
 
-func SendMetrics(client *resty.Client, url string, endpoint string, cache cache.AgentCache, logger *zap.Logger) {
-	gauges, counters := cache.GetMetrics()
+func (a *Agent) SendMetrics() {
+	gauges, counters := a.Cache.GetMetrics()
 
-	err := cache.ResetMetricValue(string(metrics.Counter), "PollCount")
+	err := a.Cache.ResetMetricValue(string(metrics.Counter), "PollCount")
 	if err != nil {
-		logger.Error(err.Error(), zap.String("event", "reset PollCount counter metric"))
+		a.Logger.Error(err.Error(), zap.String("event", "reset PollCount counter metric"))
 	}
 
 	metricsBatch := make([]metrics.Metrics, 0)
@@ -61,21 +49,25 @@ func SendMetrics(client *resty.Client, url string, endpoint string, cache cache.
 
 	body, err := json.Marshal(metricsBatch)
 	if err != nil {
-		logger.Error(err.Error(), zap.String("event", "JSON encoding metrics batch"))
+		a.Logger.Error(err.Error(), zap.String("event", "JSON encoding metrics batch"))
 	}
 
 	sendMetricsBatch := func() error {
-		resp, err := sendPostRequest(client, url, endpoint, "application/json", body)
+		resp, err := sendPostRequest(a.HTTPClient, a.Config.SendMetricsURL, a.Config.SendMetricsEndPoint,
+			"application/json", body)
+
 		if err == nil && resp.StatusCode() != http.StatusOK {
-			return errors.NewUnsuccessRequestProccessing(fmt.Sprintf("Url: %s, Status code: %d",
-				strings.Join([]string{url, endpoint}, ""), resp.StatusCode()), nil)
+			return er.NewUnsuccessRequestProccessing(fmt.Sprintf("Url: %s, Status code: %d",
+				strings.Join([]string{a.Config.SendMetricsURL, a.Config.SendMetricsEndPoint}, ""),
+				resp.StatusCode()), nil)
 		} else if err != nil {
 			return backoff.Permanent(err)
 		}
+
 		return nil
 	}
 
-	if sendErr := backoff.Retry(sendMetricsBatch, sendMetricsBatchRetryIntervals); sendErr != nil {
-		logger.Error(sendErr.Error(), zap.String("event", "send update metrics batch"))
+	if sendErr := backoff.Retry(sendMetricsBatch, a.sendMetricsBatchRetryIntervals); sendErr != nil {
+		a.Logger.Error(sendErr.Error(), zap.String("event", "send update metrics batch"))
 	}
 }

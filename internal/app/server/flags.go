@@ -3,9 +3,10 @@ package server
 import (
 	"flag"
 
+	"github.com/caarlos0/env"
+
 	config "github.com/Stern-Ritter/metrics-and-alerting-service/internal/config/server"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/utils"
-	"github.com/caarlos0/env"
 )
 
 func GetConfig(c config.ServerConfig) (config.ServerConfig, error) {

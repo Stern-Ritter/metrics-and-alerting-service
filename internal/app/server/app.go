@@ -5,13 +5,14 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/go-chi/chi"
+	"go.uber.org/zap"
+
 	compress "github.com/Stern-Ritter/metrics-and-alerting-service/internal/compress/server"
 	config "github.com/Stern-Ritter/metrics-and-alerting-service/internal/config/server"
 	logger "github.com/Stern-Ritter/metrics-and-alerting-service/internal/logger/server"
 	service "github.com/Stern-Ritter/metrics-and-alerting-service/internal/service/server"
 	storage "github.com/Stern-Ritter/metrics-and-alerting-service/internal/storage/server"
-	"github.com/go-chi/chi"
-	"go.uber.org/zap"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 )

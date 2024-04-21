@@ -4,15 +4,17 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"sort"
 	"strings"
 	"time"
 
-	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
-	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
 	"github.com/go-chi/chi"
+
+	er "github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
+	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
 )
 
 func (s *Server) UpdateMetricHandlerWithPathVars(res http.ResponseWriter, req *http.Request) {
@@ -23,8 +25,9 @@ func (s *Server) UpdateMetricHandlerWithPathVars(res http.ResponseWriter, req *h
 	err := s.MetricService.UpdateMetricWithPathVars(req.Context(), mName, mType, mValue,
 		s.isSyncSaveStorageState(), s.Config.FileStoragePath)
 
-	switch err.(type) {
-	case errors.InvalidMetricType, errors.InvalidMetricValue:
+	var invalidMetricType er.InvalidMetricType
+	var invalidMetricValue er.InvalidMetricValue
+	if errors.As(err, &invalidMetricType) || errors.As(err, &invalidMetricValue) {
 		http.Error(res, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -67,8 +70,9 @@ func (s *Server) UpdateMetricsBatchHandlerWithBody(res http.ResponseWriter, req 
 	err = s.MetricService.UpdateMetricsBatchWithBody(req.Context(), metrics,
 		s.isSyncSaveStorageState(), s.Config.FileStoragePath)
 
-	switch err.(type) {
-	case errors.InvalidMetricType, errors.InvalidMetricValue:
+	var invalidMetricType er.InvalidMetricType
+	var invalidMetricValue er.InvalidMetricValue
+	if errors.As(err, &invalidMetricType) || errors.As(err, &invalidMetricValue) {
 		http.Error(res, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -81,8 +85,10 @@ func (s *Server) GetMetricHandlerWithPathVars(res http.ResponseWriter, req *http
 	metricName := chi.URLParam(req, "name")
 
 	value, err := s.MetricService.GetMetricValueByTypeAndName(req.Context(), metricType, metricName)
-	switch err.(type) {
-	case errors.InvalidMetricType, errors.InvalidMetricName:
+
+	var invalidMetricType er.InvalidMetricType
+	var invalidMetricName er.InvalidMetricName
+	if errors.As(err, &invalidMetricType) || errors.As(err, &invalidMetricName) {
 		http.Error(res, err.Error(), http.StatusNotFound)
 		return
 	}
@@ -104,8 +110,9 @@ func (s *Server) GetMetricHandlerWithBody(res http.ResponseWriter, req *http.Req
 
 	metric, err = s.MetricService.GetMetricHandlerWithBody(req.Context(), metric)
 
-	switch err.(type) {
-	case errors.InvalidMetricType, errors.InvalidMetricName:
+	var invalidMetricType er.InvalidMetricType
+	var invalidMetricName er.InvalidMetricName
+	if errors.As(err, &invalidMetricType) || errors.As(err, &invalidMetricName) {
 		http.Error(res, err.Error(), http.StatusNotFound)
 		return
 	}

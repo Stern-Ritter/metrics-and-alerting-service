@@ -6,8 +6,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/utils"
 	"github.com/go-resty/resty/v2"
+
+	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/utils"
 )
 
 func sendPostRequest(client *resty.Client, url, endpoint, contentType string, body []byte) (*resty.Response, error) {

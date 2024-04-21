@@ -1,16 +1,16 @@
 package server
 
 import (
+	"context"
 	"database/sql"
-	e "errors"
+	"errors"
 	"fmt"
 
-	"context"
+	"github.com/jackc/pgx/v5"
 
-	errors "github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
+	er "github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
 	logger "github.com/Stern-Ritter/metrics-and-alerting-service/internal/logger/server"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
-	"github.com/jackc/pgx/v5"
 )
 
 type DBStorage struct {
@@ -80,7 +80,7 @@ func (s *DBStorage) updateMetricInTx(ctx context.Context, tx *sql.Tx, metric met
 	err = row.Scan(&mID, &mSavedValue)
 
 	if err != nil {
-		if !e.Is(err, sql.ErrNoRows) {
+		if !errors.Is(err, sql.ErrNoRows) {
 			return err
 		}
 		err = saveMetric(ctx, tx, metric.ID, metric.MType, mValue)
@@ -144,7 +144,7 @@ func (s *DBStorage) GetMetric(ctx context.Context, metric metrics.Metrics) (metr
 	err := row.Scan(&mName, &mType, &mValue)
 
 	if err != nil {
-		return metrics.Metrics{}, errors.NewInvalidMetricName(fmt.Sprintf("Metric with name: %s not exists", metric.ID), nil)
+		return metrics.Metrics{}, er.NewInvalidMetricName(fmt.Sprintf("Metric with name: %s not exists", metric.ID), nil)
 	}
 
 	m, err := metrics.NewMetricsWithNumberValue(mName, mType, mValue)
@@ -208,10 +208,10 @@ func (s *DBStorage) Ping(ctx context.Context) error {
 	return s.db.PingContext(ctx)
 }
 
-func (s *DBStorage) Restore(fname string) error {
+func (s *DBStorage) Restore(fName string) error {
 	return fmt.Errorf("can not restore database storage state from file")
 }
 
-func (s *DBStorage) Save(fname string) error {
-	return fmt.Errorf("can not save database storage state to file: %s", fname)
+func (s *DBStorage) Save(fName string) error {
+	return fmt.Errorf("can not save database storage state to file: %s", fName)
 }

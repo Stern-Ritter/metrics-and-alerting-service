@@ -5,8 +5,9 @@ import (
 	"compress/gzip"
 	"fmt"
 
-	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/utils"
 	"github.com/go-resty/resty/v2"
+
+	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/utils"
 )
 
 var compressedContentTypes = []string{"application/json", "text/html"}
