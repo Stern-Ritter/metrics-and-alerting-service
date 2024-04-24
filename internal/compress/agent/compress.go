@@ -3,9 +3,11 @@ package agent
 import (
 	"bytes"
 	"compress/gzip"
+	"fmt"
+
+	"github.com/go-resty/resty/v2"
 
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/utils"
-	"github.com/go-resty/resty/v2"
 )
 
 var compressedContentTypes = []string{"application/json", "text/html"}
@@ -18,7 +20,7 @@ func GzipMiddleware(c *resty.Client, resp *resty.Response) error {
 		resp.Header().Add("Content-Encoding", "gzip")
 		compressedBody, err := compress(resp.Body())
 		if err != nil {
-			return err
+			return fmt.Errorf("middleware body compress error: %w", err)
 		}
 		resp.SetBody(compressedBody)
 	}

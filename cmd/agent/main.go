@@ -3,21 +3,22 @@ package main
 import (
 	"log"
 
+	"github.com/go-resty/resty/v2"
+	"go.uber.org/zap"
+
 	app "github.com/Stern-Ritter/metrics-and-alerting-service/internal/app/agent"
 	config "github.com/Stern-Ritter/metrics-and-alerting-service/internal/config/agent"
 	logger "github.com/Stern-Ritter/metrics-and-alerting-service/internal/logger/agent"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/monitors"
 	service "github.com/Stern-Ritter/metrics-and-alerting-service/internal/service/agent"
-	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/storage"
+	storage "github.com/Stern-Ritter/metrics-and-alerting-service/internal/storage/agent"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/utils"
-	"github.com/go-resty/resty/v2"
-	"go.uber.org/zap"
 )
 
 func main() {
 	config, err := app.GetConfig(config.AgentConfig{
-		SendMetricsEndPoint: "/update",
+		SendMetricsEndPoint: "/updates",
 		LoggerLvl:           "info",
 	})
 	if err != nil {

@@ -3,9 +3,10 @@ package agent
 import (
 	"flag"
 
+	"github.com/caarlos0/env"
+
 	config "github.com/Stern-Ritter/metrics-and-alerting-service/internal/config/agent"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/utils"
-	"github.com/caarlos0/env"
 )
 
 func GetConfig(c config.AgentConfig) (config.AgentConfig, error) {

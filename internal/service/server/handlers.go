@@ -2,27 +2,32 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"sort"
 	"strings"
+	"time"
 
-	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
-	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
 	"github.com/go-chi/chi"
+
+	er "github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
+	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
 )
 
 func (s *Server) UpdateMetricHandlerWithPathVars(res http.ResponseWriter, req *http.Request) {
-	metricType := chi.URLParam(req, "type")
-	metricName := chi.URLParam(req, "name")
-	metricValue := chi.URLParam(req, "value")
+	mName := chi.URLParam(req, "name")
+	mType := chi.URLParam(req, "type")
+	mValue := chi.URLParam(req, "value")
 
-	err := s.MetricService.UpdateMetricWithPathVars(metricType, metricName, metricValue, s.isSyncSaveStorageState(),
-		s.Config.StorageFilePath)
+	err := s.MetricService.UpdateMetricWithPathVars(req.Context(), mName, mType, mValue,
+		s.isSyncSaveStorageState(), s.Config.FileStoragePath)
 
-	switch err.(type) {
-	case errors.InvalidMetricType, errors.InvalidMetricValue:
+	var invalidMetricType er.InvalidMetricType
+	var invalidMetricValue er.InvalidMetricValue
+	if errors.As(err, &invalidMetricType) || errors.As(err, &invalidMetricValue) {
 		http.Error(res, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -37,8 +42,8 @@ func (s *Server) UpdateMetricHandlerWithBody(res http.ResponseWriter, req *http.
 		return
 	}
 
-	updatedMetric, err := s.MetricService.UpdateMetricWithBody(metric, s.isSyncSaveStorageState(),
-		s.Config.StorageFilePath)
+	updatedMetric, err := s.MetricService.UpdateMetricWithBody(req.Context(), metric, s.isSyncSaveStorageState(),
+		s.Config.FileStoragePath)
 	if err != nil {
 		http.Error(res, err.Error(), http.StatusBadRequest)
 		return
@@ -55,14 +60,35 @@ func (s *Server) UpdateMetricHandlerWithBody(res http.ResponseWriter, req *http.
 	}
 }
 
+func (s *Server) UpdateMetricsBatchHandlerWithBody(res http.ResponseWriter, req *http.Request) {
+	metrics, err := decodeMetricsBatch(req.Body)
+	if err != nil {
+		http.Error(res, "Error decode request JSON body", http.StatusBadRequest)
+		return
+	}
+
+	err = s.MetricService.UpdateMetricsBatchWithBody(req.Context(), metrics,
+		s.isSyncSaveStorageState(), s.Config.FileStoragePath)
+
+	var invalidMetricType er.InvalidMetricType
+	var invalidMetricValue er.InvalidMetricValue
+	if errors.As(err, &invalidMetricType) || errors.As(err, &invalidMetricValue) {
+		http.Error(res, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	res.WriteHeader(http.StatusOK)
+}
+
 func (s *Server) GetMetricHandlerWithPathVars(res http.ResponseWriter, req *http.Request) {
 	metricType := chi.URLParam(req, "type")
 	metricName := chi.URLParam(req, "name")
 
-	value, err := s.MetricService.GetMetricValueByTypeAndName(metricType, metricName)
+	value, err := s.MetricService.GetMetricValueByTypeAndName(req.Context(), metricType, metricName)
 
-	switch err.(type) {
-	case errors.InvalidMetricType, errors.InvalidMetricName:
+	var invalidMetricType er.InvalidMetricType
+	var invalidMetricName er.InvalidMetricName
+	if errors.As(err, &invalidMetricType) || errors.As(err, &invalidMetricName) {
 		http.Error(res, err.Error(), http.StatusNotFound)
 		return
 	}
@@ -82,9 +108,12 @@ func (s *Server) GetMetricHandlerWithBody(res http.ResponseWriter, req *http.Req
 		return
 	}
 
-	metric, err = s.MetricService.GetMetricHandlerWithBody(metric)
-	if err != nil {
-		http.Error(res, err.Error(), http.StatusBadRequest)
+	metric, err = s.MetricService.GetMetricHandlerWithBody(req.Context(), metric)
+
+	var invalidMetricType er.InvalidMetricType
+	var invalidMetricName er.InvalidMetricName
+	if errors.As(err, &invalidMetricType) || errors.As(err, &invalidMetricName) {
+		http.Error(res, err.Error(), http.StatusNotFound)
 		return
 	}
 
@@ -100,13 +129,30 @@ func (s *Server) GetMetricHandlerWithBody(res http.ResponseWriter, req *http.Req
 }
 
 func (s *Server) GetMetricsHandler(res http.ResponseWriter, req *http.Request) {
-	gauges, counters := s.MetricService.GetMetrics()
+	gauges, counters, err := s.MetricService.GetMetrics(req.Context())
+	if err != nil {
+		http.Error(res, err.Error(), http.StatusInternalServerError)
+	}
+
 	body := getMetricsString(gauges, counters)
 
 	res.Header().Set("Content-type", "text/html")
-	_, err := io.WriteString(res, body)
+	_, err = io.WriteString(res, body)
 	if err != nil {
 		http.Error(res, err.Error(), http.StatusInternalServerError)
+	}
+	res.WriteHeader(http.StatusOK)
+}
+
+func (s *Server) PingDatabaseHandler(res http.ResponseWriter, req *http.Request) {
+	ctx, cancel := context.WithTimeout(req.Context(), time.Second)
+	defer cancel()
+
+	err := s.MetricService.PingDatabase(ctx)
+
+	if err != nil {
+		http.Error(res, err.Error(), http.StatusInternalServerError)
+		return
 	}
 	res.WriteHeader(http.StatusOK)
 }
@@ -126,7 +172,7 @@ func getMetricsString(gauges map[string]metrics.GaugeMetric, counters map[string
 
 func decodeMetrics(source io.ReadCloser) (metrics.Metrics, error) {
 	metric := metrics.Metrics{}
-	buf := new(bytes.Buffer)
+	var buf bytes.Buffer
 	_, err := buf.ReadFrom(source)
 	if err != nil {
 		return metric, err
@@ -136,8 +182,24 @@ func decodeMetrics(source io.ReadCloser) (metrics.Metrics, error) {
 	return metric, err
 }
 
+func decodeMetricsBatch(source io.ReadCloser) ([]metrics.Metrics, error) {
+	metricsBatch := make([]metrics.Metrics, 0)
+	var buf bytes.Buffer
+	_, err := buf.ReadFrom(source)
+	if err != nil {
+		return nil, err
+	}
+
+	err = json.Unmarshal(buf.Bytes(), &metricsBatch)
+	if err != nil {
+		return nil, err
+	}
+
+	return metricsBatch, nil
+}
+
 func (s *Server) isSyncSaveStorageState() bool {
-	isFileStorageEnabled := len(strings.TrimSpace(s.Config.StorageFilePath)) != 0
+	isFileStorageEnabled := len(strings.TrimSpace(s.Config.FileStoragePath)) != 0
 	isSyncSaveStorageState := s.Config.StoreInterval == 0
 	return isFileStorageEnabled && isSyncSaveStorageState
 }
