@@ -3,14 +3,12 @@ package agent
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"runtime"
-	"strings"
 
 	"github.com/cenkalti/backoff/v4"
 	"go.uber.org/zap"
 
-	er "github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
+	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
 )
 
@@ -53,13 +51,10 @@ func (a *Agent) SendMetrics() {
 	}
 
 	sendMetricsBatch := func() error {
-		resp, err := sendPostRequest(a.HTTPClient, a.Config.SendMetricsURL, a.Config.SendMetricsEndPoint,
-			"application/json", body)
-
-		if err == nil && resp.StatusCode() != http.StatusOK {
-			return er.NewUnsuccessRequestProccessing(fmt.Sprintf("Url: %s, Status code: %d",
-				strings.Join([]string{a.Config.SendMetricsURL, a.Config.SendMetricsEndPoint}, ""),
-				resp.StatusCode()), nil)
+		resp, err := sendPostRequest(a.HTTPClient, a.Config.SendMetricsEndPoint, "application/json", body)
+		if err == nil && !resp.Ok {
+			return errors.NewUnsuccessRequestProcessing(fmt.Sprintf("Url: %s, Status code: %d",
+				a.Config.SendMetricsEndPoint, resp.StatusCode), nil)
 		} else if err != nil {
 			return backoff.Permanent(err)
 		}

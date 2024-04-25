@@ -2,25 +2,21 @@ package agent
 
 import (
 	"context"
-	"strings"
 	"sync"
 	"time"
 
-	"github.com/go-resty/resty/v2"
-
-	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/utils"
+	"gopkg.in/h2non/gentleman.v2"
+	"gopkg.in/h2non/gentleman.v2/plugins/body"
 )
 
-func sendPostRequest(client *resty.Client, url, endpoint, contentType string, body []byte) (*resty.Response, error) {
-	headers := make(map[string][]string)
-	headers["Content-Type"] = []string{contentType}
+func sendPostRequest(client *gentleman.Client, endpoint, contentType string, data []byte) (*gentleman.Response, error) {
+	req := client.Request()
+	req.Method("POST")
+	req.Path(endpoint)
+	req.SetHeader("Content-Type", contentType)
+	req.Use(body.JSON(data))
 
-	resp, err := client.R().
-		SetHeaderMultiValues(headers).
-		SetBody(body).
-		Post(utils.AddProtocolPrefix(strings.Join([]string{url, endpoint}, "")))
-
-	return resp, err
+	return req.Send()
 }
 
 func SetInterval(ctx context.Context, wg *sync.WaitGroup, task func(), interval time.Duration) {

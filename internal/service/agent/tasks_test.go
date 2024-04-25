@@ -1,13 +1,15 @@
 package agent
 
 import (
+	"sync/atomic"
 	"testing"
 
-	"github.com/go-resty/resty/v2"
-	"github.com/jarcoal/httpmock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	gmock "gopkg.in/h2non/gentleman-mock.v2"
+	"gopkg.in/h2non/gentleman.v2"
+	"gopkg.in/h2non/gentleman.v2/context"
 
 	config "github.com/Stern-Ritter/metrics-and-alerting-service/internal/config/agent"
 	logger "github.com/Stern-Ritter/metrics-and-alerting-service/internal/logger/agent"
@@ -38,7 +40,7 @@ func (c *MockAgentMemCache) ResetMetricValue(metricType, metricName string) erro
 
 func TestUpdateMetrics(t *testing.T) {
 	t.Run("should update monitor metrics and 'RandomValue' gauge metric once", func(t *testing.T) {
-		client := resty.New()
+		client := gentleman.New()
 		aLogger, err := logger.Initialize("info")
 		require.NoError(t, err, "Error init logger")
 		mockAgentMemCache := MockAgentMemCache{
@@ -64,7 +66,16 @@ func TestUpdateMetrics(t *testing.T) {
 
 func TestSendMetrics(t *testing.T) {
 	t.Run("should reset 'PollCount' counter metric once", func(t *testing.T) {
-		client := resty.New()
+		var callCount int64
+
+		client := gentleman.New()
+		client.URL("localhost:8080")
+		client.Use(gmock.Plugin)
+		client.UseHandler("after dial", func(ctx *context.Context, handler context.Handler) {
+			atomic.AddInt64(&callCount, 1)
+			handler.Next(ctx)
+		})
+
 		aLogger, err := logger.Initialize("info")
 		require.NoError(t, err, "Error init logger")
 		mockAgentMemCache := MockAgentMemCache{
@@ -87,21 +98,17 @@ func TestSendMetrics(t *testing.T) {
 
 		mockAgentMemCache.On("ResetMetricValue", mock.Anything, mock.Anything).Return(nil)
 
-		httpmock.ActivateNonDefault(client.GetClient())
-		defer httpmock.DeactivateAndReset()
-		httpmock.RegisterResponder("POST", "http://localhost:8080/test",
-			httpmock.NewStringResponder(200, "{}"))
+		gmock.New("http://localhost:8080").
+			Post("/test").
+			Reply(200)
+		defer gmock.Disable()
 
 		agent.SendMetrics()
 
 		assert.True(t, mockAgentMemCache.AssertNumberOfCalls(t, "ResetMetricValue", 1),
 			"should reset 'PollCount' counter metric once")
 
-		metricsBatchCount := 1
-
-		httpmock.GetTotalCallCount()
-		info := httpmock.GetCallCountInfo()
-		callCount := info["POST http://localhost:8080/test"]
+		var metricsBatchCount int64 = 1
 		assert.Equal(t, metricsBatchCount, callCount)
 	})
 }

@@ -4,28 +4,33 @@ import (
 	"bytes"
 	"compress/gzip"
 	"fmt"
+	"io"
 
-	"github.com/go-resty/resty/v2"
+	"gopkg.in/h2non/gentleman.v2/context"
 
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/utils"
 )
 
 var compressedContentTypes = []string{"application/json", "text/html"}
 
-func GzipMiddleware(c *resty.Client, resp *resty.Response) error {
-	contentType := resp.Header().Values("Content-Type")
+func GzipMiddleware(ctx *context.Context, h context.Handler) {
+	contentType := ctx.Request.Header.Values("Content-Type")
 	needCompress := utils.Contains(compressedContentTypes, contentType...)
 
 	if needCompress {
-		resp.Header().Add("Content-Encoding", "gzip")
-		compressedBody, err := compress(resp.Body())
+		ctx.Request.Header.Add("Content-Encoding", "gzip")
+		body, err := io.ReadAll(ctx.Request.Body)
 		if err != nil {
-			return fmt.Errorf("middleware body compress error: %w", err)
+			ctx.Error = fmt.Errorf("middleware body compress error: %w", err)
 		}
-		resp.SetBody(compressedBody)
+		compressedBody, err := compress(body)
+		if err != nil {
+			ctx.Error = fmt.Errorf("middleware body compress error: %w", err)
+		}
+		ctx.Request.Body = io.NopCloser(bytes.NewReader(compressedBody))
+		ctx.Request.ContentLength = int64(len(compressedBody))
 	}
-
-	return nil
+	h.Next(ctx)
 }
 
 func compress(data []byte) ([]byte, error) {

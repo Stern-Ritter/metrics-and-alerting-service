@@ -4,8 +4,9 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/go-resty/resty/v2"
 	"go.uber.org/zap"
+
+	"gopkg.in/h2non/gentleman.v2"
 
 	config "github.com/Stern-Ritter/metrics-and-alerting-service/internal/config/agent"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/monitors"
@@ -14,7 +15,7 @@ import (
 )
 
 type Agent struct {
-	HTTPClient                     *resty.Client
+	HTTPClient                     *gentleman.Client
 	Cache                          cache.AgentCache
 	Monitor                        *monitors.Monitor
 	Random                         *utils.Random
@@ -23,7 +24,7 @@ type Agent struct {
 	sendMetricsBatchRetryIntervals *backoff.ExponentialBackOff
 }
 
-func NewAgent(httpClient *resty.Client, cache cache.AgentCache, monitor *monitors.Monitor,
+func NewAgent(httpClient *gentleman.Client, cache cache.AgentCache, monitor *monitors.Monitor,
 	random *utils.Random, config *config.AgentConfig, logger *zap.Logger) *Agent {
 	sendMetricsBatchRetryIntervals := backoff.NewExponentialBackOff(
 		backoff.WithInitialInterval(1*time.Second),

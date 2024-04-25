@@ -10,14 +10,16 @@ import (
 )
 
 const (
-	taksCount = 2
+	taskCount = 2
 )
 
 func Run(a *service.Agent) error {
-	a.HTTPClient.OnAfterResponse(compress.GzipMiddleware)
+	a.HTTPClient.URL(a.Config.SendMetricsURL)
+	a.HTTPClient.UseHandler("before dial", compress.GzipMiddleware)
+	a.HTTPClient.UseHandler("before dial", a.SignMiddleware)
 
 	wg := sync.WaitGroup{}
-	wg.Add(taksCount)
+	wg.Add(taskCount)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	time.AfterFunc(time.Hour, cancel)
