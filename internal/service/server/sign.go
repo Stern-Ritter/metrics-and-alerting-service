@@ -13,6 +13,10 @@ import (
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
 )
 
+const (
+	signKey = "HashSHA256"
+)
+
 type signWriter struct {
 	w         http.ResponseWriter
 	secretKey string
@@ -28,7 +32,7 @@ func (s *signWriter) Header() http.Header {
 
 func (s *signWriter) Write(body []byte) (int, error) {
 	sign := getSign(body, s.secretKey)
-	s.w.Header().Set("HashSHA256", sign)
+	s.w.Header().Set(signKey, sign)
 	return s.w.Write(body)
 }
 
@@ -38,7 +42,7 @@ func (s *signWriter) WriteHeader(statusCode int) {
 
 func (s *Server) SignMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		sign := r.Header.Get("HashSHA256")
+		sign := r.Header.Get(signKey)
 		hasBody := r.Body != http.NoBody
 		needCheckSign := len(strings.TrimSpace(s.Config.SecretKey)) != 0 && len(strings.TrimSpace(sign)) != 0
 

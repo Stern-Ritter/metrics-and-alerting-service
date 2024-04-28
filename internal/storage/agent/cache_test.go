@@ -20,21 +20,13 @@ const (
 
 	defaultMetricName = "metricName"
 
-	initGaugeMetricValue               = 12.2
-	parsedInitGaugeMetricValue         = "12.2"
-	invalidGaugeMetricValue            = "eleven point one"
-	validGaugeMetricValue              = "11.1"
-	parsedValidGaugeMetricValue        = 11.1
-	updatedNonExistingGaugeMetricValue = 11.1
-	updatedExistingGaugeMetricValue    = 11.1
+	initGaugeMetricValue            = 12.2
+	parsedValidGaugeMetricValue     = 11.1
+	updatedExistingGaugeMetricValue = 11.1
 
-	initCounterMetricValue               = int64(12)
-	parsedInitCounterMetricValue         = "12"
-	invalidCounterMetricValue            = "11.1"
-	validCounterMetricValue              = "11"
-	parsedValidCounterMetricValue        = 11
-	updatedNonExistingCounterMetricValue = int64(11)
-	updatedExistingCounterMetricValue    = int64(23)
+	initCounterMetricValue            = int64(12)
+	parsedValidCounterMetricValue     = 11
+	updatedExistingCounterMetricValue = int64(23)
 
 	resetedGaugeMetricValue   = 0.0
 	resetedCounterMetricValue = 0
@@ -163,11 +155,11 @@ func TestUpdateMonitorMetrics(t *testing.T) {
 
 	testCases := []struct {
 		name          string
-		monitor       *monitors.Monitor
+		monitor       *monitors.RuntimeMonitor
 		expectedState state
 	}{{
 		name: "should correct update monitor metrics and related counters",
-		monitor: &monitors.Monitor{
+		monitor: &monitors.RuntimeMonitor{
 			Alloc:         1.0,
 			BuckHashSys:   2.0,
 			Frees:         3.0,
@@ -238,7 +230,7 @@ func TestUpdateMonitorMetrics(t *testing.T) {
 			logger, err := logger.Initialize("info")
 			require.NoError(t, err, "Error init logger")
 			storage := NewAgentMemCache(metrics.SupportedGaugeMetrics, metrics.SupportedCounterMetrics, logger)
-			storage.UpdateMonitorMetrics(tt.monitor)
+			storage.UpdateRuntimeMonitorMetrics(tt.monitor)
 
 			gauges, counters := storage.GetMetrics()
 

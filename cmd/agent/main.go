@@ -19,6 +19,7 @@ import (
 func main() {
 	cfg, err := app.GetConfig(config.AgentConfig{
 		SendMetricsEndPoint: "/updates",
+		MetricsBufferSize:   12,
 		LoggerLvl:           "info",
 	})
 	if err != nil {
@@ -32,9 +33,10 @@ func main() {
 
 	httpClient := gentleman.New()
 	cache := storage.NewAgentMemCache(metrics.SupportedGaugeMetrics, metrics.SupportedCounterMetrics, logger)
-	monitor := monitors.Monitor{}
+	runtimeMonitor := monitors.RuntimeMonitor{}
+	utilMonitor := monitors.UtilMonitor{}
 	random := utils.NewRandom()
-	agent := service.NewAgent(httpClient, &cache, &monitor, &random, &cfg, logger)
+	agent := service.NewAgent(httpClient, &cache, &runtimeMonitor, &utilMonitor, &random, &cfg, logger)
 
 	err = app.Run(agent)
 	if err != nil {

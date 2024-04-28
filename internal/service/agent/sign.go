@@ -11,6 +11,10 @@ import (
 	"gopkg.in/h2non/gentleman.v2/context"
 )
 
+const (
+	signKey = "HashSHA256"
+)
+
 func (a *Agent) SignMiddleware(ctx *context.Context, h context.Handler) {
 	needSignResponseBody := len(strings.TrimSpace(a.Config.SecretKey)) != 0
 	if needSignResponseBody {
@@ -19,7 +23,7 @@ func (a *Agent) SignMiddleware(ctx *context.Context, h context.Handler) {
 			ctx.Error = err
 		}
 		sign := getSign(body, a.Config.SecretKey)
-		ctx.Request.Header.Add("HashSHA256", sign)
+		ctx.Request.Header.Add(signKey, sign)
 		ctx.Request.Body = io.NopCloser(bytes.NewReader(body))
 	}
 	h.Next(ctx)
