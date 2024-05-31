@@ -71,6 +71,7 @@ func Run(config *config.ServerConfig, logger *logger.ServerLogger) error {
 func addRoutes(s *service.Server) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(s.Logger.LoggerMiddleware)
+	r.Use(s.SignMiddleware)
 	r.Use(compress.GzipMiddleware)
 	r.Get("/", s.GetMetricsHandler)
 

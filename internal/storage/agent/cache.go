@@ -15,7 +15,8 @@ import (
 type AgentCache interface {
 	UpdateGaugeMetric(metric metrics.GaugeMetric) (metrics.GaugeMetric, error)
 	UpdateCounterMetric(metric metrics.CounterMetric) (metrics.CounterMetric, error)
-	UpdateMonitorMetrics(m *monitors.Monitor)
+	UpdateRuntimeMonitorMetrics(m *monitors.RuntimeMonitor)
+	UpdateUtilMonitorMetrics(m *monitors.UtilMonitor)
 	ResetMetricValue(metricType, metricName string) error
 	GetMetrics() (map[string]metrics.GaugeMetric, map[string]metrics.CounterMetric)
 }
@@ -121,7 +122,7 @@ func (c *AgentMemCache) GetMetrics() (map[string]metrics.GaugeMetric, map[string
 	return gauges, counters
 }
 
-func (c *AgentMemCache) UpdateMonitorMetrics(m *monitors.Monitor) {
+func (c *AgentMemCache) UpdateRuntimeMonitorMetrics(m *monitors.RuntimeMonitor) {
 	c.updateMonitorMetric(metrics.NewGauge("Alloc", m.Alloc))
 	c.updateMonitorMetric(metrics.NewGauge("BuckHashSys", m.BuckHashSys))
 	c.updateMonitorMetric(metrics.NewGauge("Frees", m.Frees))
@@ -151,10 +152,17 @@ func (c *AgentMemCache) UpdateMonitorMetrics(m *monitors.Monitor) {
 	c.updateMonitorMetric(metrics.NewGauge("TotalAlloc", m.TotalAlloc))
 }
 
+func (c *AgentMemCache) UpdateUtilMonitorMetrics(m *monitors.UtilMonitor) {
+	c.updateMonitorMetric(metrics.NewGauge("TotalMemory", m.TotalMemory))
+	c.updateMonitorMetric(metrics.NewGauge("FreeMemory", m.FreeMemory))
+	c.updateMonitorMetric(metrics.NewGauge("CPUutilization1", m.CPUutilization1))
+}
+
 func (c *AgentMemCache) updateMonitorMetric(metric metrics.GaugeMetric) {
 	_, err := c.UpdateGaugeMetric(metric)
 	if err != nil {
-		c.Logger.Error(err.Error(), zap.String("event", "update monitor metric"))
+		c.Logger.Error(err.Error(), zap.String("event", "update monitor metric"),
+			zap.String("metric type", string(metric.Type)), zap.String("metric name", metric.Name))
 		return
 	}
 

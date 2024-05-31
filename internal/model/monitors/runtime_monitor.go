@@ -5,7 +5,7 @@ import (
 	"sync"
 )
 
-type Monitor struct {
+type RuntimeMonitor struct {
 	mu            sync.Mutex
 	Alloc         float64
 	BuckHashSys   float64
@@ -36,9 +36,10 @@ type Monitor struct {
 	TotalAlloc    float64
 }
 
-func (m *Monitor) Update(ms *runtime.MemStats) {
+func (m *RuntimeMonitor) Update(ms *runtime.MemStats) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
 	m.Alloc = float64(ms.Alloc)
 	m.BuckHashSys = float64(ms.BuckHashSys)
 	m.Frees = float64(ms.Frees)
@@ -66,12 +67,14 @@ func (m *Monitor) Update(ms *runtime.MemStats) {
 	m.StackSys = float64(ms.StackSys)
 	m.Sys = float64(ms.Sys)
 	m.TotalAlloc = float64(ms.TotalAlloc)
+
+	return nil
 }
 
-func (m *Monitor) Lock() {
+func (m *RuntimeMonitor) Lock() {
 	m.mu.Lock()
 }
 
-func (m *Monitor) Unlock() {
+func (m *RuntimeMonitor) Unlock() {
 	m.mu.Unlock()
 }

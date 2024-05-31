@@ -29,6 +29,7 @@ func parseFlags(c *config.ServerConfig) error {
 	flag.StringVar(&c.FileStoragePath, "f", "/tmp/metrics-db.json", "metrics storage file path")
 	flag.BoolVar(&c.Restore, "r", true, "will metrics be restored from the file")
 	flag.StringVar(&c.DatabaseDSN, "d", "", "database dsn")
+	flag.StringVar(&c.SecretKey, "k", "", "secret authentication key")
 	flag.Parse()
 	err := utils.ValidateHostnamePort(c.URL)
 

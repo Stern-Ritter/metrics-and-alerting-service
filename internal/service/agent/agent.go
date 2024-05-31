@@ -4,27 +4,33 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/go-resty/resty/v2"
 	"go.uber.org/zap"
 
+	"gopkg.in/h2non/gentleman.v2"
+
 	config "github.com/Stern-Ritter/metrics-and-alerting-service/internal/config/agent"
+	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/monitors"
 	cache "github.com/Stern-Ritter/metrics-and-alerting-service/internal/storage/agent"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/utils"
 )
 
 type Agent struct {
-	HTTPClient                     *resty.Client
+	HTTPClient                     *gentleman.Client
 	Cache                          cache.AgentCache
-	Monitor                        *monitors.Monitor
+	RuntimeMonitor                 *monitors.RuntimeMonitor
+	UtilMonitor                    *monitors.UtilMonitor
 	Random                         *utils.Random
 	Config                         *config.AgentConfig
-	Logger                         *zap.Logger
+	metricsCh                      chan []metrics.Metrics
+	doneCh                         chan struct{}
 	sendMetricsBatchRetryIntervals *backoff.ExponentialBackOff
+	Logger                         *zap.Logger
 }
 
-func NewAgent(httpClient *resty.Client, cache cache.AgentCache, monitor *monitors.Monitor,
-	random *utils.Random, config *config.AgentConfig, logger *zap.Logger) *Agent {
+func NewAgent(httpClient *gentleman.Client, cache cache.AgentCache, runtimeMonitor *monitors.RuntimeMonitor,
+	utilMonitor *monitors.UtilMonitor, random *utils.Random, config *config.AgentConfig, logger *zap.Logger) *Agent {
+
 	sendMetricsBatchRetryIntervals := backoff.NewExponentialBackOff(
 		backoff.WithInitialInterval(1*time.Second),
 		backoff.WithRandomizationFactor(0),
@@ -32,6 +38,18 @@ func NewAgent(httpClient *resty.Client, cache cache.AgentCache, monitor *monitor
 		backoff.WithMaxInterval(5*time.Second),
 		backoff.WithMaxElapsedTime(10*time.Second))
 
-	return &Agent{httpClient, cache, monitor, random, config, logger,
-		sendMetricsBatchRetryIntervals}
+	metricsCh := make(chan []metrics.Metrics, config.MetricsBufferSize)
+	doneCh := make(chan struct{})
+
+	return &Agent{
+		HTTPClient:                     httpClient,
+		Cache:                          cache,
+		RuntimeMonitor:                 runtimeMonitor,
+		UtilMonitor:                    utilMonitor,
+		Random:                         random,
+		Config:                         config,
+		metricsCh:                      metricsCh,
+		doneCh:                         doneCh,
+		sendMetricsBatchRetryIntervals: sendMetricsBatchRetryIntervals,
+		Logger:                         logger}
 }

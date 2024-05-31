@@ -10,29 +10,28 @@ import (
 )
 
 const (
-	taksCount = 2
+	taskCount = 3
 )
 
 func Run(a *service.Agent) error {
-	a.HTTPClient.OnAfterResponse(compress.GzipMiddleware)
+	a.HTTPClient.URL(a.Config.SendMetricsURL)
+	a.HTTPClient.UseHandler("before dial", compress.GzipMiddleware)
+	a.HTTPClient.UseHandler("before dial", a.SignMiddleware)
 
 	wg := sync.WaitGroup{}
-	wg.Add(taksCount)
+	wg.Add(taskCount)
 
 	ctx, cancel := context.WithCancel(context.Background())
-	time.AfterFunc(time.Hour, cancel)
+	defer cancel()
 
-	updateMetricsTask := func() {
-		a.UpdateMetrics()
-	}
-	sendMetricsTask := func() {
-		a.SendMetrics()
-	}
+	a.StartSendMetricsWorkerPool()
 
-	service.SetInterval(ctx, &wg, updateMetricsTask, time.Duration(a.Config.UpdateMetricsInterval)*time.Second)
-	service.SetInterval(ctx, &wg, sendMetricsTask, time.Duration(a.Config.SendMetricsInterval)*time.Second)
+	service.SetInterval(ctx, &wg, a.UpdateRuntimeMetrics, time.Duration(a.Config.UpdateMetricsInterval)*time.Second)
+	service.SetInterval(ctx, &wg, a.UpdateUtilMetrics, time.Duration(a.Config.UpdateMetricsInterval)*time.Second)
+	service.SetInterval(ctx, &wg, a.SendMetrics, time.Duration(a.Config.SendMetricsInterval)*time.Second)
 
 	wg.Wait()
+	a.StopTasks()
 
 	return nil
 }

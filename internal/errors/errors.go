@@ -51,21 +51,21 @@ func NewInvalidMetricValue(message string, err error) error {
 	return InvalidMetricValue{message: message, err: err}
 }
 
-type UnsuccessRequestProccessing struct {
+type UnsuccessRequestProcessing struct {
 	message string
 	err     error
 }
 
-func (e UnsuccessRequestProccessing) Error() string {
+func (e UnsuccessRequestProcessing) Error() string {
 	return e.message
 }
 
-func (e UnsuccessRequestProccessing) Unwrap() error {
+func (e UnsuccessRequestProcessing) Unwrap() error {
 	return e.err
 }
 
-func NewUnsuccessRequestProccessing(message string, err error) error {
-	return UnsuccessRequestProccessing{message: message, err: err}
+func NewUnsuccessRequestProcessing(message string, err error) error {
+	return UnsuccessRequestProcessing{message: message, err: err}
 }
 
 type FileUnavailable struct {
@@ -83,4 +83,21 @@ func (e FileUnavailable) Unwrap() error {
 
 func NewFileUnavailable(message string, err error) error {
 	return FileUnavailable{message: message, err: err}
+}
+
+type UnsignedRequest struct {
+	message string
+	err     error
+}
+
+func (e UnsignedRequest) Error() string {
+	return e.message
+}
+
+func (e UnsignedRequest) Unwrap() error {
+	return e.err
+}
+
+func NewUnsignedRequest(message string, err error) error {
+	return UnsignedRequest{message: message, err: err}
 }

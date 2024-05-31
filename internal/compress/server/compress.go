@@ -26,14 +26,14 @@ func (c *compressWriter) Header() http.Header {
 	return c.w.Header()
 }
 
-func (c *compressWriter) Write(p []byte) (int, error) {
+func (c *compressWriter) Write(body []byte) (int, error) {
 	contentType := c.Header().Values("Content-type")
 	needCompress := utils.Contains(contentType, compressedContentTypes...)
 	if needCompress {
 		c.w.Header().Set("Content-Encoding", "gzip")
-		return c.zw.Write(p)
+		return c.zw.Write(body)
 	}
-	return c.w.Write(p)
+	return c.w.Write(body)
 }
 
 func (c *compressWriter) WriteHeader(statusCode int) {
@@ -61,8 +61,8 @@ func NewCompressReader(r io.ReadCloser) (*compressReader, error) {
 	}, nil
 }
 
-func (c *compressReader) Read(p []byte) (n int, err error) {
-	return c.zr.Read(p)
+func (c *compressReader) Read(body []byte) (n int, err error) {
+	return c.zr.Read(body)
 }
 
 func (c *compressReader) Close() error {
@@ -77,9 +77,9 @@ func GzipMiddleware(next http.Handler) http.Handler {
 		contentEncoding := r.Header.Values("Content-Encoding")
 		sendsGzip := utils.Contains(contentEncoding, "gzip")
 		contentType := r.Header.Values("Content-type")
-		needUncompress := utils.Contains(compressedContentTypes, contentType...)
+		needUncompressed := utils.Contains(compressedContentTypes, contentType...)
 
-		if sendsGzip && needUncompress {
+		if sendsGzip && needUncompressed {
 			cr, err := NewCompressReader(r.Body)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
