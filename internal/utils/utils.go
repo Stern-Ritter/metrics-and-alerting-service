@@ -39,7 +39,7 @@ func Contains(s []string, v ...string) bool {
 }
 
 func CopyMap[K comparable, V any](source map[K]V) map[K]V {
-	result := make(map[K]V)
+	result := make(map[K]V, len(source))
 
 	for key, value := range source {
 		result[key] = value

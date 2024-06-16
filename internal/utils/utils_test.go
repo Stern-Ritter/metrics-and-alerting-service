@@ -2,6 +2,7 @@ package utils
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -169,4 +170,92 @@ func TestAddProtocolPrefix(t *testing.T) {
 			assert.Equal(t, tt.want, got)
 		})
 	}
+}
+
+func ContainsMap(s []string, v ...string) bool {
+	m := make(map[string]struct{}, len(s))
+	for _, e := range s {
+		m[strings.ToLower(e)] = struct{}{}
+	}
+	for _, f := range v {
+		if _, found := m[strings.ToLower(f)]; found {
+			return true
+		}
+	}
+	return false
+}
+
+func CopyMapWithoutInitSize[K comparable, V any](source map[K]V) map[K]V {
+	result := make(map[K]V)
+	for key, value := range source {
+		result[key] = value
+	}
+	return result
+}
+
+func AddProtocolPrefixWithSb(url string) string {
+	var sb strings.Builder
+	if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
+		sb.WriteString("http://")
+		sb.WriteString(url)
+		return sb.String()
+	}
+	return url
+}
+
+func BenchmarkContains(b *testing.B) {
+	s := []string{"a", "b", "c", "d", "e", "f", "g"}
+	v := []string{"b", "d", "k"}
+
+	b.Run("with nested loops", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			Contains(s, v...)
+		}
+	})
+
+	b.Run("with map", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			ContainsMap(s, v...)
+		}
+	})
+}
+
+func BenchmarkCopyMap(b *testing.B) {
+	source := map[int]string{
+		1: "a",
+		2: "b",
+		3: "c",
+		4: "d",
+		5: "e",
+		6: "f",
+		7: "g",
+	}
+
+	b.Run("with init size", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			CopyMap(source)
+		}
+	})
+
+	b.Run("without init size", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			CopyMapWithoutInitSize(source)
+		}
+	})
+}
+
+func BenchmarkAddProtocolPrefix(b *testing.B) {
+	url := "example.com"
+
+	b.Run("with strings join", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			AddProtocolPrefix(url)
+		}
+	})
+
+	b.Run("with strings builder", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			AddProtocolPrefixWithSb(url)
+		}
+	})
 }
