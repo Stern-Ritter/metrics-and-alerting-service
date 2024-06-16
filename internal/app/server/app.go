@@ -75,6 +75,8 @@ func addRoutes(s *service.Server) *chi.Mux {
 	r.Use(compress.GzipMiddleware)
 	r.Get("/", s.GetMetricsHandler)
 
+	r.Mount("/debug/pprof", http.DefaultServeMux)
+
 	r.Route("/update", func(r chi.Router) {
 		r.Post("/", s.UpdateMetricHandlerWithBody)
 		r.Post("/{type}/{name}/{value}", s.UpdateMetricHandlerWithPathVars)
