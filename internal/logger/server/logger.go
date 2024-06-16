@@ -57,12 +57,12 @@ func (logger *ServerLogger) LoggerMiddleware(next http.Handler) http.Handler {
 			size:   0,
 		}
 
-		lw := loggingResponseWriter{
+		lw := &loggingResponseWriter{
 			ResponseWriter: w,
 			responseData:   responseData,
 		}
 
-		next.ServeHTTP(&lw, r)
+		next.ServeHTTP(lw, r)
 
 		duration := time.Since(start)
 

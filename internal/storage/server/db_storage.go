@@ -6,8 +6,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/jackc/pgx/v5"
-
 	er "github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
 	logger "github.com/Stern-Ritter/metrics-and-alerting-service/internal/logger/server"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
@@ -68,12 +66,9 @@ func (s *DBStorage) updateMetricInTx(ctx context.Context, tx *sql.Tx, metric met
 			value
 		FROM metrics
 		WHERE
-			name = @name AND
-			type = @type
-	`, pgx.NamedArgs{
-		"name": metric.ID,
-		"type": metric.MType,
-	})
+			name = $1 AND
+			type = $2
+	`, metric.ID, metric.MType)
 
 	var mID int64
 	var mSavedValue float64
@@ -101,12 +96,8 @@ func saveMetric(ctx context.Context, tx *sql.Tx, mName string, mType string, mVa
 		INSERT INTO metrics
 		(name, type, value)
 		VALUES
-		(@name, @type, @value)
-	`, pgx.NamedArgs{
-		"name":  mName,
-		"type":  mType,
-		"value": mValue,
-	})
+		($1, $2, $3)
+	`, mName, mType, mValue)
 
 	return err
 }
@@ -114,11 +105,8 @@ func saveMetric(ctx context.Context, tx *sql.Tx, mName string, mType string, mVa
 func updateMetric(ctx context.Context, tx *sql.Tx, mID int64, mValue float64) error {
 	_, err := tx.ExecContext(ctx, `
 		UPDATE metrics
-		SET value = @value WHERE id = @id
-	`, pgx.NamedArgs{
-		"id":    mID,
-		"value": mValue,
-	})
+		SET value = $1 WHERE id = $2
+	`, mValue, mID)
 
 	return err
 }
@@ -131,12 +119,9 @@ func (s *DBStorage) GetMetric(ctx context.Context, metric metrics.Metrics) (metr
 			value
 		FROM metrics
 		WHERE
-			name = @name AND
-			type = @type
-	`, pgx.NamedArgs{
-		"name": metric.ID,
-		"type": metric.MType,
-	})
+			name = $1 AND
+			type = $2
+	`, metric.ID, metric.MType)
 
 	var mName string
 	var mType string
@@ -163,11 +148,8 @@ func (s *DBStorage) GetMetrics(ctx context.Context) (map[string]metrics.GaugeMet
 			value
 		FROM metrics
 		WHERE
-			type IN(@gaugeType, @counterType)
-	`, pgx.NamedArgs{
-		"gaugeType":   metrics.Gauge,
-		"counterType": metrics.Counter,
-	})
+			type IN($1, $2)
+	`, metrics.Gauge, metrics.Counter)
 
 	if err != nil {
 		return nil, nil, err

@@ -82,24 +82,22 @@ func GzipMiddleware(next http.Handler) http.Handler {
 		if sendsGzip && needUncompressed {
 			cr, err := NewCompressReader(r.Body)
 			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
+				http.Error(w, "Internal server error", http.StatusInternalServerError)
 				return
 			}
-
-			r.Body = cr
 			defer cr.Close()
+			r.Body = cr
 		}
 
-		ow := w
 		acceptEncoding := r.Header.Values("Accept-Encoding")
 		supportsGzip := utils.Contains(acceptEncoding, "gzip")
 
 		if supportsGzip {
 			cw := NewCompressWriter(w)
-			ow = cw
 			defer cw.Close()
+			w = cw
 		}
 
-		next.ServeHTTP(ow, r)
+		next.ServeHTTP(w, r)
 	})
 }

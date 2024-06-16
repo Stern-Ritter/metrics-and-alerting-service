@@ -78,7 +78,7 @@ func (s *Server) SignMiddleware(next http.Handler) http.Handler {
 func checkSign(value []byte, sign string, secretKey string) error {
 	decodedSign, err := hex.DecodeString(sign)
 	if err != nil {
-		return errors.NewUnsignedRequest("Invalid request sign", err)
+		return errors.NewUnsignedRequest("Invalid request sign", nil)
 	}
 
 	h := hmac.New(sha256.New, []byte(secretKey))
@@ -86,7 +86,7 @@ func checkSign(value []byte, sign string, secretKey string) error {
 	hash := h.Sum(nil)
 
 	if !hmac.Equal(decodedSign, hash) {
-		return errors.NewUnsignedRequest("Invalid request sign", err)
+		return errors.NewUnsignedRequest("Invalid request sign", nil)
 	}
 
 	return nil
