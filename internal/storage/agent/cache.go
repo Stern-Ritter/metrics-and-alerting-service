@@ -22,8 +22,8 @@ type AgentCache interface {
 }
 
 type AgentMemCache struct {
-	gaugesMu   sync.Mutex
-	countersMu sync.Mutex
+	gaugesMu   sync.RWMutex
+	countersMu sync.RWMutex
 
 	gauges   map[string]metrics.GaugeMetric
 	counters map[string]metrics.CounterMetric
@@ -111,13 +111,13 @@ func (c *AgentMemCache) ResetMetricValue(metricType, metricName string) error {
 }
 
 func (c *AgentMemCache) GetMetrics() (map[string]metrics.GaugeMetric, map[string]metrics.CounterMetric) {
-	c.gaugesMu.Lock()
+	c.gaugesMu.RLock()
 	gauges := utils.CopyMap(c.gauges)
-	c.gaugesMu.Unlock()
+	c.gaugesMu.RUnlock()
 
-	c.countersMu.Lock()
+	c.countersMu.RLock()
 	counters := utils.CopyMap(c.counters)
-	c.countersMu.Unlock()
+	c.countersMu.RUnlock()
 
 	return gauges, counters
 }

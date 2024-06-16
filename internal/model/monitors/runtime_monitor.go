@@ -36,7 +36,7 @@ type RuntimeMonitor struct {
 	TotalAlloc    float64
 }
 
-func (m *RuntimeMonitor) Update(ms *runtime.MemStats) error {
+func (m *RuntimeMonitor) Update(ms *runtime.MemStats) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -67,8 +67,6 @@ func (m *RuntimeMonitor) Update(ms *runtime.MemStats) error {
 	m.StackSys = float64(ms.StackSys)
 	m.Sys = float64(ms.Sys)
 	m.TotalAlloc = float64(ms.TotalAlloc)
-
-	return nil
 }
 
 func (m *RuntimeMonitor) Lock() {

@@ -16,15 +16,11 @@ import (
 func (a *Agent) UpdateRuntimeMetrics() {
 	var ms runtime.MemStats
 	runtime.ReadMemStats(&ms)
-	err := a.RuntimeMonitor.Update(&ms)
-	if err != nil {
-		a.Logger.Error(err.Error(), zap.String("event", "update runtime gauge metrics"))
-		return
-	}
+	a.RuntimeMonitor.Update(&ms)
 	a.Cache.UpdateRuntimeMonitorMetrics(a.RuntimeMonitor)
 
 	randomValue, _ := a.Random.Float(0.1, 99.99)
-	_, err = a.Cache.UpdateGaugeMetric(metrics.NewGauge("RandomValue", randomValue))
+	_, err := a.Cache.UpdateGaugeMetric(metrics.NewGauge("RandomValue", randomValue))
 	if err != nil {
 		a.Logger.Error(err.Error(), zap.String("event", "update RandomValue gauge metric"))
 	}
@@ -52,7 +48,7 @@ func (a *Agent) SendMetrics() {
 		a.Logger.Error(err.Error(), zap.String("event", "reset PollCount counter metric"))
 	}
 
-	metricsBatch := make([]metrics.Metrics, 0)
+	metricsBatch := make([]metrics.Metrics, 0, len(gauges)+len(counters))
 	for _, gaugeMetric := range gauges {
 		metricsBatch = append(metricsBatch, metrics.GaugeMetricToMetrics(gaugeMetric))
 

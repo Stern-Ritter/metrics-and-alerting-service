@@ -21,10 +21,15 @@ func (a *Agent) SignMiddleware(ctx *context.Context, h context.Handler) {
 		body, err := io.ReadAll(ctx.Request.Body)
 		if err != nil {
 			ctx.Error = err
+			h.Next(ctx)
+			return
 		}
-		sign := getSign(body, a.Config.SecretKey)
-		ctx.Request.Header.Add(signKey, sign)
 		ctx.Request.Body = io.NopCloser(bytes.NewReader(body))
+
+		if len(body) > 0 {
+			sign := getSign(body, a.Config.SecretKey)
+			ctx.Request.Header.Add(signKey, sign)
+		}
 	}
 	h.Next(ctx)
 }
