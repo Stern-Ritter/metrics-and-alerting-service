@@ -13,6 +13,9 @@ POSTGRES_PASSWORD=postgres
 POSTGRES_DB=postgres
 POSTGRES_PORT=5432
 
+gofmt:
+	goimports -local github.com/Stern-Ritter/metrics-and-alerting-service -w .
+
 build-server:
 	cd $(SERVER_DIR) && go build -buildvcs=false -o $(SERVER_OUTPUT) && cd ../..
 

@@ -13,8 +13,9 @@ import (
 	context "context"
 	reflect "reflect"
 
-	metrics "github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
 	gomock "go.uber.org/mock/gomock"
+
+	metrics "github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
 )
 
 // MockStorage is a mock of Storage interface.
