@@ -12,6 +12,7 @@ import (
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/utils"
 )
 
+// AgentCache defines an interface for getting and updating metrics statistics in the agent's cache.
 type AgentCache interface {
 	UpdateGaugeMetric(metric metrics.GaugeMetric) (metrics.GaugeMetric, error)
 	UpdateCounterMetric(metric metrics.CounterMetric) (metrics.CounterMetric, error)
@@ -21,6 +22,7 @@ type AgentCache interface {
 	GetMetrics() (map[string]metrics.GaugeMetric, map[string]metrics.CounterMetric)
 }
 
+// AgentMemCache is an in-memory implementation of the AgentCache interface.
 type AgentMemCache struct {
 	gaugesMu   sync.RWMutex
 	countersMu sync.RWMutex
@@ -31,6 +33,7 @@ type AgentMemCache struct {
 	Logger *zap.Logger
 }
 
+// NewAgentMemCache is constructor for creating a new AgentMemCache with the provided supported gauge and counter metrics.
 func NewAgentMemCache(supportedGaugeMetrics map[string]metrics.GaugeMetric, supportedCounterMetrics map[string]metrics.CounterMetric,
 	logger *zap.Logger) AgentMemCache {
 	return AgentMemCache{
@@ -40,6 +43,7 @@ func NewAgentMemCache(supportedGaugeMetrics map[string]metrics.GaugeMetric, supp
 	}
 }
 
+// UpdateGaugeMetric updates or adds a gauge metric in the cache and returns the updated metric.
 func (c *AgentMemCache) UpdateGaugeMetric(metric metrics.GaugeMetric) (metrics.GaugeMetric, error) {
 	c.gaugesMu.Lock()
 	defer c.gaugesMu.Unlock()
@@ -59,6 +63,7 @@ func (c *AgentMemCache) UpdateGaugeMetric(metric metrics.GaugeMetric) (metrics.G
 	return c.gauges[metric.Name], nil
 }
 
+// UpdateCounterMetric updates or adds a counter metric in the cache and returns the updated metric.
 func (c *AgentMemCache) UpdateCounterMetric(metric metrics.CounterMetric) (metrics.CounterMetric, error) {
 	c.countersMu.Lock()
 	defer c.countersMu.Unlock()
@@ -78,6 +83,7 @@ func (c *AgentMemCache) UpdateCounterMetric(metric metrics.CounterMetric) (metri
 	return c.counters[metric.Name], nil
 }
 
+// ResetMetricValue resets the value of the specified metric to 0.
 func (c *AgentMemCache) ResetMetricValue(metricType, metricName string) error {
 	c.countersMu.Lock()
 	c.gaugesMu.Lock()
@@ -110,6 +116,7 @@ func (c *AgentMemCache) ResetMetricValue(metricType, metricName string) error {
 	return nil
 }
 
+// GetMetrics returns all the gauge and counter metrics from the cache.
 func (c *AgentMemCache) GetMetrics() (map[string]metrics.GaugeMetric, map[string]metrics.CounterMetric) {
 	c.gaugesMu.RLock()
 	gauges := utils.CopyMap(c.gauges)
@@ -122,6 +129,7 @@ func (c *AgentMemCache) GetMetrics() (map[string]metrics.GaugeMetric, map[string
 	return gauges, counters
 }
 
+// UpdateRuntimeMonitorMetrics updates the runtime monitor metrics in the cache.
 func (c *AgentMemCache) UpdateRuntimeMonitorMetrics(m *monitors.RuntimeMonitor) {
 	c.updateMonitorMetric(metrics.NewGauge("Alloc", m.Alloc))
 	c.updateMonitorMetric(metrics.NewGauge("BuckHashSys", m.BuckHashSys))
@@ -152,6 +160,7 @@ func (c *AgentMemCache) UpdateRuntimeMonitorMetrics(m *monitors.RuntimeMonitor) 
 	c.updateMonitorMetric(metrics.NewGauge("TotalAlloc", m.TotalAlloc))
 }
 
+// UpdateUtilMonitorMetrics updates the utilization monitor metrics in the cache.
 func (c *AgentMemCache) UpdateUtilMonitorMetrics(m *monitors.UtilMonitor) {
 	c.updateMonitorMetric(metrics.NewGauge("TotalMemory", m.TotalMemory))
 	c.updateMonitorMetric(metrics.NewGauge("FreeMemory", m.FreeMemory))

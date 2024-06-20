@@ -9,10 +9,13 @@ import (
 	service "github.com/Stern-Ritter/metrics-and-alerting-service/internal/service/agent"
 )
 
+// Count of agent setting up and managing tasks
 const (
 	taskCount = 3
 )
 
+// Run starts the agent, setting up and managing tasks.
+// It returns an error if there are issues starting the agent.
 func Run(a *service.Agent) error {
 	a.HTTPClient.URL(a.Config.SendMetricsURL)
 	a.HTTPClient.UseHandler("before dial", compress.GzipMiddleware)

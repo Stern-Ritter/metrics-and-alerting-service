@@ -11,8 +11,11 @@ import (
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/utils"
 )
 
+// compressedContentTypes holds the content types that should be compressed.
 var compressedContentTypes = []string{"application/json", "text/html"}
 
+// GzipMiddleware compresses the request body if it contains one of the specified content types.
+// It adds the "Content-Encoding: gzip" header to the request and compresses the body.
 func GzipMiddleware(ctx *context.Context, h context.Handler) {
 	contentType := ctx.Request.Header.Values("Content-Type")
 	needCompress := utils.Contains(compressedContentTypes, contentType...)

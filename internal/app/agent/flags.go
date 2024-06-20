@@ -9,6 +9,8 @@ import (
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/utils"
 )
 
+// GetConfig initializes the agent config by parsing command-line flags and environment variables.
+// It returns the initialized agent config and parsing error.
 func GetConfig(c config.AgentConfig) (config.AgentConfig, error) {
 	err := parseFlags(&c)
 	if err != nil {

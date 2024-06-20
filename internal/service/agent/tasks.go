@@ -13,6 +13,7 @@ import (
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
 )
 
+// UpdateRuntimeMetrics task that collects runtime metrics statistics and updates the cache.
 func (a *Agent) UpdateRuntimeMetrics() {
 	var ms runtime.MemStats
 	runtime.ReadMemStats(&ms)
@@ -26,6 +27,7 @@ func (a *Agent) UpdateRuntimeMetrics() {
 	}
 }
 
+// UpdateUtilMetrics task that collects utilization metrics and updates the cache
 func (a *Agent) UpdateUtilMetrics() {
 	ms, err := mem.VirtualMemory()
 	if err != nil {
@@ -40,6 +42,8 @@ func (a *Agent) UpdateUtilMetrics() {
 	a.Cache.UpdateUtilMonitorMetrics(a.UtilMonitor)
 }
 
+// SendMetrics task that gets all metrics from the cache, resets the PollCount counter metric
+// and sends the metrics statistics to the server.
 func (a *Agent) SendMetrics() {
 	gauges, counters := a.Cache.GetMetrics()
 
@@ -66,6 +70,7 @@ func (a *Agent) SendMetrics() {
 	}
 }
 
+// StartSendMetricsWorkerPool starts a pool of workers to send metrics statistics.
 func (a *Agent) StartSendMetricsWorkerPool() {
 	sendRateLimit := a.Config.RateLimit
 	if sendRateLimit <= 0 {
@@ -119,6 +124,7 @@ func (a *Agent) sendMetricsWorker(id int, metricsCh <-chan []metrics.Metrics) {
 		zap.String("event", "stopping send metrics worker"))
 }
 
+// StopTasks stops all Agent tasks
 func (a *Agent) StopTasks() {
 	close(a.doneCh)
 }

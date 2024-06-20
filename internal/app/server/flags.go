@@ -9,6 +9,8 @@ import (
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/utils"
 )
 
+// GetConfig initializes the server config by parsing command-line flags and environment variables.
+// It returns the initialized server config and parsing error.
 func GetConfig(c config.ServerConfig) (config.ServerConfig, error) {
 	err := parseFlags(&c)
 	if err != nil {

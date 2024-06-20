@@ -7,6 +7,7 @@ import (
 	er "github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
 )
 
+// Metrics is a data transfer object for generic metric that can be gauge or counter.
 type Metrics struct {
 	ID    string   `json:"id"`              // имя метрики
 	MType string   `json:"type"`            // параметр, принимающий значение gauge или counter
@@ -14,6 +15,8 @@ type Metrics struct {
 	Value *float64 `json:"value,omitempty"` // значение метрики в случае передачи gauge
 }
 
+// NewMetricsWithStringValue is constructor for creating a new Metrics with the specified name, type, and value as a string.
+// It returns an error if type is unsupported.
 func NewMetricsWithStringValue(mName string, mTypeName string, value string) (Metrics, error) {
 	switch MetricType(mTypeName) {
 	case Gauge:
@@ -35,6 +38,8 @@ func NewMetricsWithStringValue(mName string, mTypeName string, value string) (Me
 	}
 }
 
+// NewMetricsWithNumberValue is constructor for creating a new Metrics with the specified name, type, and value as a float64.
+// It returns an error if type is unsupported.
 func NewMetricsWithNumberValue(mName string, mTypeName string, value float64) (Metrics, error) {
 	switch MetricType(mTypeName) {
 	case Gauge:
@@ -50,6 +55,7 @@ func NewMetricsWithNumberValue(mName string, mTypeName string, value float64) (M
 	}
 }
 
+// GetValue returns the value of the Metrics as a float64.
 func (m Metrics) GetValue() (float64, error) {
 	switch MetricType(m.MType) {
 	case Gauge:
@@ -61,14 +67,17 @@ func (m Metrics) GetValue() (float64, error) {
 	}
 }
 
+// MetricsToGaugeMetric maps a Metrics to a GaugeMetric.
 func MetricsToGaugeMetric(m Metrics) GaugeMetric {
 	return NewGauge(m.ID, *m.Value)
 }
 
+// MetricsToCounterMetric maps a Metrics to a CounterMetric.
 func MetricsToCounterMetric(m Metrics) CounterMetric {
 	return NewCounter(m.ID, *m.Delta)
 }
 
+// GaugeMetricToMetrics maps a GaugeMetric to a Metrics.
 func GaugeMetricToMetrics(m GaugeMetric) Metrics {
 	name := m.Name
 	typeName := string(m.Type)
@@ -76,6 +85,7 @@ func GaugeMetricToMetrics(m GaugeMetric) Metrics {
 	return Metrics{ID: name, MType: typeName, Value: &value}
 }
 
+// CounterMetricToMetrics maps a CounterMetric to a Metrics.
 func CounterMetricToMetrics(m CounterMetric) Metrics {
 	name := m.Name
 	typeName := string(m.Type)

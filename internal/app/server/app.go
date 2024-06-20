@@ -17,6 +17,8 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
+// Run starts the server, setting up the storage and HTTP handlers.
+// It returns an error if there are issues starting the server.
 func Run(config *config.ServerConfig, logger *logger.ServerLogger) error {
 	isDatabaseEnabled := len(strings.TrimSpace(config.DatabaseDSN)) != 0
 

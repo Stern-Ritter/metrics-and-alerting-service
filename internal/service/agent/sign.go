@@ -15,6 +15,7 @@ const (
 	signKey = "HashSHA256"
 )
 
+// SignMiddleware is a middleware that signs the request body with HMAC SHA256 if a secret key is configured.
 func (a *Agent) SignMiddleware(ctx *context.Context, h context.Handler) {
 	needSignResponseBody := len(strings.TrimSpace(a.Config.SecretKey)) != 0
 	if needSignResponseBody {

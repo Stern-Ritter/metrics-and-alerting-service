@@ -17,29 +17,36 @@ const (
 	signKey = "HashSHA256"
 )
 
+// signWriter wraps http.ResponseWriter and adds an HMAC SHA256 signature to the response body.
 type signWriter struct {
 	w         http.ResponseWriter
 	secretKey string
 }
 
+// NewSignWriter is constructor for creating a new signWriter.
 func NewSignWriter(w http.ResponseWriter, secretKey string) *signWriter {
 	return &signWriter{w: w, secretKey: secretKey}
 }
 
+// Header returns response headers.
 func (s *signWriter) Header() http.Header {
 	return s.w.Header()
 }
 
+// Write writes the data to response body.
 func (s *signWriter) Write(body []byte) (int, error) {
 	sign := getSign(body, s.secretKey)
 	s.w.Header().Set(signKey, sign)
 	return s.w.Write(body)
 }
 
+// WriteHeader write response headers and set response status code.
 func (s *signWriter) WriteHeader(statusCode int) {
 	s.w.WriteHeader(statusCode)
 }
 
+// SignMiddleware is a middleware that checks the request body signature and
+// signs the response body with HMAC SHA256 if a secret key is configured.
 func (s *Server) SignMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		sign := r.Header.Get(signKey)

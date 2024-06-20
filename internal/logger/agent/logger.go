@@ -4,6 +4,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// Initialize initializes a zap.Logger with the specified logging level.
 func Initialize(level string) (*zap.Logger, error) {
 	lvl, err := zap.ParseAtomicLevel(level)
 	if err != nil {

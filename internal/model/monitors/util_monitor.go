@@ -7,6 +7,7 @@ import (
 	"github.com/shirou/gopsutil/v3/mem"
 )
 
+// UtilMonitor holds system utilization metrics statistics.
 type UtilMonitor struct {
 	mu              sync.Mutex
 	TotalMemory     float64
@@ -14,6 +15,7 @@ type UtilMonitor struct {
 	CPUutilization1 float64
 }
 
+// Update updates the UtilMonitor with the latest statistics.
 func (m *UtilMonitor) Update(ms *mem.VirtualMemoryStat) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()

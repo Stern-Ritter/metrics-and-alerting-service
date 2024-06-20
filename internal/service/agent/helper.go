@@ -19,6 +19,8 @@ func sendPostRequest(client *gentleman.Client, endpoint, contentType string, dat
 	return req.Send()
 }
 
+// SetInterval schedules a task at a specified interval until the context is done.
+// It uses a WaitGroup to manage the lifecycle of the task.
 func SetInterval(ctx context.Context, wg *sync.WaitGroup, task func(), interval time.Duration) {
 	go func() {
 		for {
