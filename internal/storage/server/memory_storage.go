@@ -14,11 +14,13 @@ import (
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/utils"
 )
 
+// StorageState is the state of the in-memory implementation of the Storage interface.
 type StorageState struct {
 	Gauges   map[string]metrics.GaugeMetric   `json:"gauges"`
 	Counters map[string]metrics.CounterMetric `json:"counters"`
 }
 
+// MemoryStorage is an in-memory implementation of the Storage interface.
 type MemoryStorage struct {
 	gaugesMu   sync.Mutex
 	countersMu sync.Mutex
@@ -29,6 +31,7 @@ type MemoryStorage struct {
 	Logger *logger.ServerLogger
 }
 
+// NewMemoryStorage is constructor for creating a new MemoryStorage.
 func NewMemoryStorage(logger *logger.ServerLogger) *MemoryStorage {
 	return &MemoryStorage{
 		gauges:   make(map[string]metrics.GaugeMetric),
@@ -37,6 +40,7 @@ func NewMemoryStorage(logger *logger.ServerLogger) *MemoryStorage {
 	}
 }
 
+// UpdateMetric updates a single metric in the memory storage.
 func (s *MemoryStorage) UpdateMetric(ctx context.Context, metric metrics.Metrics) error {
 	switch metrics.MetricType(metric.MType) {
 	case metrics.Gauge:
@@ -58,6 +62,7 @@ func (s *MemoryStorage) UpdateMetric(ctx context.Context, metric metrics.Metrics
 	return nil
 }
 
+// UpdateMetrics updates multiple metrics in the memory storage.
 func (s *MemoryStorage) UpdateMetrics(ctx context.Context, metricsBatch []metrics.Metrics) error {
 	for _, metric := range metricsBatch {
 		switch metrics.MetricType(metric.MType) {
@@ -109,6 +114,7 @@ func (s *MemoryStorage) updateCounterMetric(metric metrics.CounterMetric) (metri
 	return s.counters[metric.Name], nil
 }
 
+// GetMetric gets a single metric from the memory storage.
 func (s *MemoryStorage) GetMetric(ctx context.Context, metric metrics.Metrics) (metrics.Metrics, error) {
 	switch metrics.MetricType(metric.MType) {
 	case metrics.Gauge:
@@ -134,6 +140,7 @@ func (s *MemoryStorage) GetMetric(ctx context.Context, metric metrics.Metrics) (
 	}
 }
 
+// GetMetrics gets all metrics from the memory storage.
 func (s *MemoryStorage) GetMetrics(ctx context.Context) (map[string]metrics.GaugeMetric, map[string]metrics.CounterMetric, error) {
 	s.gaugesMu.Lock()
 	gauges := utils.CopyMap(s.gauges)
@@ -146,10 +153,13 @@ func (s *MemoryStorage) GetMetrics(ctx context.Context) (map[string]metrics.Gaug
 	return gauges, counters, nil
 }
 
+// Ping checks the connection to the memory storage.
+// This operation is not supported for the in-memory implementation of the Storage
 func (s *MemoryStorage) Ping(ctx context.Context) error {
 	return fmt.Errorf("the database is disabled")
 }
 
+// Restore restores the memory storage state from the file.
 func (s *MemoryStorage) Restore(fname string) error {
 	file, err := os.OpenFile(fname, os.O_RDONLY|os.O_CREATE, 0644)
 	if err != nil {
@@ -184,6 +194,7 @@ func (s *MemoryStorage) Restore(fname string) error {
 	return nil
 }
 
+// Save saves the memory storage state to the file.
 func (s *MemoryStorage) Save(fname string) error {
 	file, err := os.OpenFile(fname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
@@ -209,12 +220,14 @@ func (s *MemoryStorage) Save(fname string) error {
 	return err
 }
 
+// SetGaugeMetircs sets the gauge metrics in the memory storage.
 func (s *MemoryStorage) SetGaugeMetircs(gauges map[string]metrics.GaugeMetric) {
 	s.gaugesMu.Lock()
 	defer s.gaugesMu.Unlock()
 	s.gauges = gauges
 }
 
+// SetCounterMetrics sets the counter metrics in the memory storage.
 func (s *MemoryStorage) SetCounterMetrics(counters map[string]metrics.CounterMetric) {
 	s.countersMu.Lock()
 	defer s.countersMu.Unlock()

@@ -15,6 +15,7 @@ import (
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/utils"
 )
 
+// Agent is monitoring agent that collects and sends metrics statistics to the server.
 type Agent struct {
 	HTTPClient                     *gentleman.Client
 	Cache                          cache.AgentCache
@@ -28,6 +29,7 @@ type Agent struct {
 	Logger                         *zap.Logger
 }
 
+// NewAgent is constructor for creating a new Agent.
 func NewAgent(httpClient *gentleman.Client, cache cache.AgentCache, runtimeMonitor *monitors.RuntimeMonitor,
 	utilMonitor *monitors.UtilMonitor, random *utils.Random, config *config.AgentConfig, logger *zap.Logger) *Agent {
 

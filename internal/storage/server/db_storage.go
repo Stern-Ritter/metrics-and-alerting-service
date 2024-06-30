@@ -6,22 +6,23 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/jackc/pgx/v5"
-
 	er "github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
 	logger "github.com/Stern-Ritter/metrics-and-alerting-service/internal/logger/server"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
 )
 
+// DBStorage is an implementation of Storage that uses a database.
 type DBStorage struct {
 	db     *sql.DB
 	Logger *logger.ServerLogger
 }
 
+// NewDBStorage is constructor for creating a new DBStorage.
 func NewDBStorage(db *sql.DB, logger *logger.ServerLogger) *DBStorage {
 	return &DBStorage{db: db, Logger: logger}
 }
 
+// UpdateMetric updates a single metric in the database.
 func (s *DBStorage) UpdateMetric(ctx context.Context, metric metrics.Metrics) error {
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{})
 	if err != nil {
@@ -38,6 +39,7 @@ func (s *DBStorage) UpdateMetric(ctx context.Context, metric metrics.Metrics) er
 	return tx.Commit()
 }
 
+// UpdateMetrics updates multiple metrics in the database.
 func (s *DBStorage) UpdateMetrics(ctx context.Context, metricsBatch []metrics.Metrics) error {
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{})
 	if err != nil {
@@ -68,12 +70,9 @@ func (s *DBStorage) updateMetricInTx(ctx context.Context, tx *sql.Tx, metric met
 			value
 		FROM metrics
 		WHERE
-			name = @name AND
-			type = @type
-	`, pgx.NamedArgs{
-		"name": metric.ID,
-		"type": metric.MType,
-	})
+			name = $1 AND
+			type = $2
+	`, metric.ID, metric.MType)
 
 	var mID int64
 	var mSavedValue float64
@@ -101,12 +100,8 @@ func saveMetric(ctx context.Context, tx *sql.Tx, mName string, mType string, mVa
 		INSERT INTO metrics
 		(name, type, value)
 		VALUES
-		(@name, @type, @value)
-	`, pgx.NamedArgs{
-		"name":  mName,
-		"type":  mType,
-		"value": mValue,
-	})
+		($1, $2, $3)
+	`, mName, mType, mValue)
 
 	return err
 }
@@ -114,15 +109,13 @@ func saveMetric(ctx context.Context, tx *sql.Tx, mName string, mType string, mVa
 func updateMetric(ctx context.Context, tx *sql.Tx, mID int64, mValue float64) error {
 	_, err := tx.ExecContext(ctx, `
 		UPDATE metrics
-		SET value = @value WHERE id = @id
-	`, pgx.NamedArgs{
-		"id":    mID,
-		"value": mValue,
-	})
+		SET value = $1 WHERE id = $2
+	`, mValue, mID)
 
 	return err
 }
 
+// GetMetric gets a single metric from the database.
 func (s *DBStorage) GetMetric(ctx context.Context, metric metrics.Metrics) (metrics.Metrics, error) {
 	row := s.db.QueryRowContext(ctx, `
 		SELECT
@@ -131,12 +124,9 @@ func (s *DBStorage) GetMetric(ctx context.Context, metric metrics.Metrics) (metr
 			value
 		FROM metrics
 		WHERE
-			name = @name AND
-			type = @type
-	`, pgx.NamedArgs{
-		"name": metric.ID,
-		"type": metric.MType,
-	})
+			name = $1 AND
+			type = $2
+	`, metric.ID, metric.MType)
 
 	var mName string
 	var mType string
@@ -155,6 +145,7 @@ func (s *DBStorage) GetMetric(ctx context.Context, metric metrics.Metrics) (metr
 	return m, err
 }
 
+// GetMetrics gets all metrics from the database.
 func (s *DBStorage) GetMetrics(ctx context.Context) (map[string]metrics.GaugeMetric, map[string]metrics.CounterMetric, error) {
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT
@@ -163,11 +154,8 @@ func (s *DBStorage) GetMetrics(ctx context.Context) (map[string]metrics.GaugeMet
 			value
 		FROM metrics
 		WHERE
-			type IN(@gaugeType, @counterType)
-	`, pgx.NamedArgs{
-		"gaugeType":   metrics.Gauge,
-		"counterType": metrics.Counter,
-	})
+			type IN($1, $2)
+	`, metrics.Gauge, metrics.Counter)
 
 	if err != nil {
 		return nil, nil, err
@@ -204,14 +192,19 @@ func (s *DBStorage) GetMetrics(ctx context.Context) (map[string]metrics.GaugeMet
 	return gauges, counters, nil
 }
 
+// Ping checks the connection to the database.
 func (s *DBStorage) Ping(ctx context.Context) error {
 	return s.db.PingContext(ctx)
 }
 
+// Restore restores the database storage state from a file.
+// This operation is not supported for Storage that uses a database.
 func (s *DBStorage) Restore(fName string) error {
 	return fmt.Errorf("can not restore database storage state from file")
 }
 
+// Save saves the database storage state to a file.
+// This operation is not supported for Storage that uses a database.
 func (s *DBStorage) Save(fName string) error {
 	return fmt.Errorf("can not save database storage state to file: %s", fName)
 }

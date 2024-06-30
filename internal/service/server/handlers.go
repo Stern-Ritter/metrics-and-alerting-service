@@ -17,6 +17,7 @@ import (
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
 )
 
+// UpdateMetricHandlerWithPathVars updates a metric using request path variables.
 func (s *Server) UpdateMetricHandlerWithPathVars(res http.ResponseWriter, req *http.Request) {
 	mName := chi.URLParam(req, "name")
 	mType := chi.URLParam(req, "type")
@@ -35,6 +36,7 @@ func (s *Server) UpdateMetricHandlerWithPathVars(res http.ResponseWriter, req *h
 	res.WriteHeader(http.StatusOK)
 }
 
+// UpdateMetricHandlerWithBody updates a metric using request body.
 func (s *Server) UpdateMetricHandlerWithBody(res http.ResponseWriter, req *http.Request) {
 	metric, err := decodeMetrics(req.Body)
 	if err != nil {
@@ -60,6 +62,7 @@ func (s *Server) UpdateMetricHandlerWithBody(res http.ResponseWriter, req *http.
 	}
 }
 
+// UpdateMetricsBatchHandlerWithBody updates a batch of metrics using the request body.
 func (s *Server) UpdateMetricsBatchHandlerWithBody(res http.ResponseWriter, req *http.Request) {
 	metrics, err := decodeMetricsBatch(req.Body)
 	if err != nil {
@@ -80,6 +83,7 @@ func (s *Server) UpdateMetricsBatchHandlerWithBody(res http.ResponseWriter, req 
 	res.WriteHeader(http.StatusOK)
 }
 
+// GetMetricHandlerWithPathVars  returns the value of a metric by type and name using request path variables.
 func (s *Server) GetMetricHandlerWithPathVars(res http.ResponseWriter, req *http.Request) {
 	metricType := chi.URLParam(req, "type")
 	metricName := chi.URLParam(req, "name")
@@ -101,6 +105,7 @@ func (s *Server) GetMetricHandlerWithPathVars(res http.ResponseWriter, req *http
 	}
 }
 
+// GetMetricHandlerWithBody returns a metric by type and name defined in the request body.
 func (s *Server) GetMetricHandlerWithBody(res http.ResponseWriter, req *http.Request) {
 	metric, err := decodeMetrics(req.Body)
 	if err != nil {
@@ -128,6 +133,7 @@ func (s *Server) GetMetricHandlerWithBody(res http.ResponseWriter, req *http.Req
 	}
 }
 
+// GetMetricsHandler returns all metrics.
 func (s *Server) GetMetricsHandler(res http.ResponseWriter, req *http.Request) {
 	gauges, counters, err := s.MetricService.GetMetrics(req.Context())
 	if err != nil {
@@ -144,6 +150,7 @@ func (s *Server) GetMetricsHandler(res http.ResponseWriter, req *http.Request) {
 	res.WriteHeader(http.StatusOK)
 }
 
+// PingDatabaseHandler checks the connection to the database and return connection status.
 func (s *Server) PingDatabaseHandler(res http.ResponseWriter, req *http.Request) {
 	ctx, cancel := context.WithTimeout(req.Context(), time.Second)
 	defer cancel()

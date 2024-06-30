@@ -1,59 +1,74 @@
 package metrics
 
+// MetricType is the type of a metric.
 type MetricType string
 
 const (
-	Gauge   = MetricType("gauge")
+	// Gauge is the gauge metric type.
+	Gauge = MetricType("gauge")
+	// Counter is the counter metric type.
 	Counter = MetricType("counter")
 )
 
+// Metric contains common attributes of a metric.
 type Metric struct {
-	Name string     `json:"name"`
-	Type MetricType `json:"type"`
+	Name string     `json:"name"` // The name of the metric
+	Type MetricType `json:"type"` // The type of the metric (gauge or counter)
 }
 
+// GaugeMetric is a metric with a float value.
 type GaugeMetric struct {
-	Metric `json:"metric"`
-	Value  float64 `json:"value"`
+	Metric `json:"metric"` // The common attributes of a metric
+	Value  float64         `json:"value"` // The value of the gauge metric
 }
 
+// SetValue sets the value of the gauge metric.
 func (g *GaugeMetric) SetValue(value float64) {
 	g.Value = value
 }
 
+// GetValue returns the value of the gauge metric.
 func (g *GaugeMetric) GetValue() float64 {
 	return g.Value
 }
 
+// ClearValue resets the value of the gauge metric to 0.
 func (g *GaugeMetric) ClearValue() {
 	g.Value = 0
 }
 
+// NewGauge is constructor for creating a new GaugeMetric with the specified name and value.
 func NewGauge(name string, value float64) GaugeMetric {
 	return GaugeMetric{Metric: Metric{Name: name, Type: Gauge}, Value: value}
 }
 
+// CounterMetric is a metric with an int value.
 type CounterMetric struct {
 	Metric `json:"metric"`
 	Value  int64 `json:"value"`
 }
 
+// SetValue increments the value of the counter metric by the specified value.
 func (c *CounterMetric) SetValue(value int64) {
 	c.Value += value
 }
 
+// GetValue returns the value of the counter metric.
 func (c *CounterMetric) GetValue() int64 {
 	return c.Value
 }
 
+// ClearValue resets the value of the counter metric to 0.
 func (c *CounterMetric) ClearValue() {
 	c.Value = 0
 }
 
+// NewCounter is constructor for creating a new CounterMetric with the specified name and initial value.
 func NewCounter(name string, value int64) CounterMetric {
 	return CounterMetric{Metric: Metric{Name: name, Type: Counter}, Value: value}
 }
 
+// SupportedGaugeMetrics is a predefined map of supported gauge metrics.
 var SupportedGaugeMetrics = map[string]GaugeMetric{
 	"Alloc":           NewGauge("Alloc", 0),
 	"BuckHashSys":     NewGauge("BuckHashSys", 0),
@@ -88,6 +103,7 @@ var SupportedGaugeMetrics = map[string]GaugeMetric{
 	"CPUutilization1": NewGauge("CPUutilization1", 0),
 }
 
+// SupportedCounterMetrics is a predefined map of supported counter metrics.
 var SupportedCounterMetrics = map[string]CounterMetric{
 	"PollCount": NewCounter("PollCount", 0),
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/utils"
 )
 
+// compressedContentTypes holds the content types that should be compressed.
 var compressedContentTypes = []string{"application/json", "text/html"}
 
 type compressWriter struct {
@@ -15,6 +16,8 @@ type compressWriter struct {
 	zw *gzip.Writer
 }
 
+// NewCompressWriter is constructor for creating a new compressWriter wrapping http.ResponseWriter
+// for writing compressed response body.
 func NewCompressWriter(w http.ResponseWriter) *compressWriter {
 	return &compressWriter{
 		w:  w,
@@ -22,10 +25,12 @@ func NewCompressWriter(w http.ResponseWriter) *compressWriter {
 	}
 }
 
+// Header returns response headers.
 func (c *compressWriter) Header() http.Header {
 	return c.w.Header()
 }
 
+// Write writes the data to response body.
 func (c *compressWriter) Write(body []byte) (int, error) {
 	contentType := c.Header().Values("Content-type")
 	needCompress := utils.Contains(contentType, compressedContentTypes...)
@@ -36,10 +41,12 @@ func (c *compressWriter) Write(body []byte) (int, error) {
 	return c.w.Write(body)
 }
 
+// WriteHeader write response headers and set response status code.
 func (c *compressWriter) WriteHeader(statusCode int) {
 	c.w.WriteHeader(statusCode)
 }
 
+// Close closes the gzip.Writer.
 func (c *compressWriter) Close() error {
 	return c.zw.Close()
 }
@@ -49,6 +56,7 @@ type compressReader struct {
 	zr *gzip.Reader
 }
 
+// NewCompressReader is constructor for creating a new compressReader for reading compressed request body
 func NewCompressReader(r io.ReadCloser) (*compressReader, error) {
 	zr, err := gzip.NewReader(r)
 	if err != nil {
@@ -61,10 +69,12 @@ func NewCompressReader(r io.ReadCloser) (*compressReader, error) {
 	}, nil
 }
 
+// Read reads data into the provided byte slice and returns the number of bytes read.
 func (c *compressReader) Read(body []byte) (n int, err error) {
 	return c.zr.Read(body)
 }
 
+// Close closes the gzip.Reader and the io.ReadCloser.
 func (c *compressReader) Close() error {
 	if err := c.r.Close(); err != nil {
 		return err
@@ -72,6 +82,8 @@ func (c *compressReader) Close() error {
 	return c.zr.Close()
 }
 
+// GzipMiddleware is an HTTP middleware for reading compressed request body and
+// writing compressed response body if the client supports gzip encoding.
 func GzipMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		contentEncoding := r.Header.Values("Content-Encoding")
@@ -82,24 +94,22 @@ func GzipMiddleware(next http.Handler) http.Handler {
 		if sendsGzip && needUncompressed {
 			cr, err := NewCompressReader(r.Body)
 			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
+				http.Error(w, "Internal server error", http.StatusInternalServerError)
 				return
 			}
-
-			r.Body = cr
 			defer cr.Close()
+			r.Body = cr
 		}
 
-		ow := w
 		acceptEncoding := r.Header.Values("Accept-Encoding")
 		supportsGzip := utils.Contains(acceptEncoding, "gzip")
 
 		if supportsGzip {
 			cw := NewCompressWriter(w)
-			ow = cw
 			defer cw.Close()
+			w = cw
 		}
 
-		next.ServeHTTP(ow, r)
+		next.ServeHTTP(w, r)
 	})
 }

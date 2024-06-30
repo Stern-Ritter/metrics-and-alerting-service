@@ -22,12 +22,14 @@ import (
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/utils"
 )
 
+// MetricService is a service for managing metrics.
 type MetricService struct {
 	storage              storage.Storage
 	logger               *logger.ServerLogger
 	storageRetryInterval *backoff.ExponentialBackOff
 }
 
+// NewMetricService is constructor for creating a new MetricService.
 func NewMetricService(storage storage.Storage, logger *logger.ServerLogger) *MetricService {
 	storageRetryInterval := backoff.NewExponentialBackOff(
 		backoff.WithInitialInterval(1*time.Second),
@@ -39,6 +41,7 @@ func NewMetricService(storage storage.Storage, logger *logger.ServerLogger) *Met
 	return &MetricService{storage: storage, logger: logger, storageRetryInterval: storageRetryInterval}
 }
 
+// UpdateMetricWithPathVars updates a metric using string params.
 func (s *MetricService) UpdateMetricWithPathVars(ctx context.Context, mName string, mType string,
 	mValue string, isSyncSaveStorageState bool, filePath string) error {
 	m, err := metrics.NewMetricsWithStringValue(mName, mType, mValue)
@@ -72,6 +75,7 @@ func (s *MetricService) UpdateMetricWithPathVars(ctx context.Context, mName stri
 	return nil
 }
 
+// UpdateMetricWithBody updates a metric using Metrics object
 func (s *MetricService) UpdateMetricWithBody(ctx context.Context, metric metrics.Metrics, isSyncSaveStorageState bool,
 	filePath string) (metrics.Metrics, error) {
 
@@ -118,6 +122,7 @@ func (s *MetricService) UpdateMetricWithBody(ctx context.Context, metric metrics
 	return m, nil
 }
 
+// UpdateMetricsBatchWithBody updates a slice of metrics.
 func (s *MetricService) UpdateMetricsBatchWithBody(ctx context.Context, metrics []metrics.Metrics,
 	isSyncSaveStorageState bool, filePath string) error {
 
@@ -147,6 +152,7 @@ func (s *MetricService) UpdateMetricsBatchWithBody(ctx context.Context, metrics 
 	return nil
 }
 
+// GetMetricValueByTypeAndName returns a string with value of the metric by metric type and name.
 func (s *MetricService) GetMetricValueByTypeAndName(ctx context.Context, mType string, mName string) (string, error) {
 	var m metrics.Metrics
 	var err error
@@ -175,6 +181,7 @@ func (s *MetricService) GetMetricValueByTypeAndName(ctx context.Context, mType s
 	}
 }
 
+// GetMetricHandlerWithBody returns a metric by metric type and name.
 func (s *MetricService) GetMetricHandlerWithBody(ctx context.Context, metric metrics.Metrics) (metrics.Metrics, error) {
 	var m metrics.Metrics
 	var err error
@@ -196,6 +203,7 @@ func (s *MetricService) GetMetricHandlerWithBody(ctx context.Context, metric met
 	return m, err
 }
 
+// GetMetrics returns all metrics.
 func (s *MetricService) GetMetrics(ctx context.Context) (map[string]metrics.GaugeMetric,
 	map[string]metrics.CounterMetric, error) {
 	var gauges map[string]metrics.GaugeMetric
@@ -218,6 +226,7 @@ func (s *MetricService) GetMetrics(ctx context.Context) (map[string]metrics.Gaug
 	return gauges, counters, err
 }
 
+// RestoreStateFromFile restores the storage state from a file.
 func (s *MetricService) RestoreStateFromFile(filePath string) error {
 	restore := func() error {
 		err := s.storage.Restore(filePath)
@@ -234,6 +243,7 @@ func (s *MetricService) RestoreStateFromFile(filePath string) error {
 	return backoff.Retry(restore, s.storageRetryInterval)
 }
 
+// SaveStateToFile saves the storage state to a file.
 func (s *MetricService) SaveStateToFile(filePath string) error {
 	save := func() error {
 		err := s.storage.Save(filePath)
@@ -250,6 +260,7 @@ func (s *MetricService) SaveStateToFile(filePath string) error {
 	return backoff.Retry(save, s.storageRetryInterval)
 }
 
+// SetSaveStateToFileInterval sets an interval to save the storage state to a file.
 func (s *MetricService) SetSaveStateToFileInterval(filePath string, storeInterval int) {
 	if storeInterval <= 0 {
 		return
@@ -270,6 +281,7 @@ func (s *MetricService) SetSaveStateToFileInterval(filePath string, storeInterva
 	}()
 }
 
+// MigrateDatabase migrates the database using goose.
 func (s *MetricService) MigrateDatabase(databaseDsn string) error {
 	goose.SetBaseFS(migrations.Migrations)
 	if err := goose.SetDialect("postgres"); err != nil {
@@ -292,6 +304,7 @@ func (s *MetricService) MigrateDatabase(databaseDsn string) error {
 	return nil
 }
 
+// PingDatabase checks the connection to the database.
 func (s *MetricService) PingDatabase(ctx context.Context) error {
 	return s.storage.Ping(ctx)
 }

@@ -5,6 +5,7 @@ import (
 	"sync"
 )
 
+// RuntimeMonitor holds runtime metrics statistics.
 type RuntimeMonitor struct {
 	mu            sync.Mutex
 	Alloc         float64
@@ -36,7 +37,8 @@ type RuntimeMonitor struct {
 	TotalAlloc    float64
 }
 
-func (m *RuntimeMonitor) Update(ms *runtime.MemStats) error {
+// Update updates the RuntimeMonitor with the latest statistics.
+func (m *RuntimeMonitor) Update(ms *runtime.MemStats) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -67,14 +69,14 @@ func (m *RuntimeMonitor) Update(ms *runtime.MemStats) error {
 	m.StackSys = float64(ms.StackSys)
 	m.Sys = float64(ms.Sys)
 	m.TotalAlloc = float64(ms.TotalAlloc)
-
-	return nil
 }
 
+// Lock locks mutex of the RuntimeMonitor.
 func (m *RuntimeMonitor) Lock() {
 	m.mu.Lock()
 }
 
+// Unlock unlocks mutex of the RuntimeMonitor.
 func (m *RuntimeMonitor) Unlock() {
 	m.mu.Unlock()
 }
