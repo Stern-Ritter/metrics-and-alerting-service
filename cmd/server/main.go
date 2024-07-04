@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	_ "net/http/pprof"
 
@@ -11,7 +12,15 @@ import (
 	logger "github.com/Stern-Ritter/metrics-and-alerting-service/internal/logger/server"
 )
 
+var (
+	buildVersion = "N/A"
+	buildDate    = "N/A"
+	buildCommit  = "N/A"
+)
+
 func main() {
+	printBuildInfo()
+
 	config, err := app.GetConfig(config.ServerConfig{
 		LoggerLvl: "info",
 	})
@@ -28,4 +37,8 @@ func main() {
 	if err != nil {
 		logger.Fatal(err.Error(), zap.String("event", "start server"))
 	}
+}
+
+func printBuildInfo() {
+	fmt.Printf("Build version: %s\nBuild date: %s\nBuild commit: %s\n", buildVersion, buildDate, buildCommit)
 }
