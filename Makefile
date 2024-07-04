@@ -13,8 +13,19 @@ POSTGRES_PASSWORD=postgres
 POSTGRES_DB=postgres
 POSTGRES_PORT=5432
 
+STATIC_LINTER_NAME = multichecker
+STATIC_LINTER_DIR = ./cmd/staticlint
+
 gofmt:
 	goimports -local github.com/Stern-Ritter/metrics-and-alerting-service -w .
+
+build-static-linter:
+	@echo "Building $(STATIC_LINTER_NAME)..."
+	go build -o $(STATIC_LINTER_DIR)/$(STATIC_LINTER_NAME) $(STATIC_LINTER_DIR)/$(STATIC_LINTER_NAME).go
+
+lint: build-static-linter
+	@echo "Running static analysis on the project..."
+	$(STATIC_LINTER_DIR)/$(STATIC_LINTER_NAME) ./...
 
 build-server:
 	cd $(SERVER_DIR) && go build -buildvcs=false -o $(SERVER_OUTPUT) && cd ../..
