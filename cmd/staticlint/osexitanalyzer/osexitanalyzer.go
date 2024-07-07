@@ -85,10 +85,7 @@ func checkOsExitCall(pass *analysis.Pass, fset *token.FileSet, file *ast.File, f
 		if isOsExitCall(callExpr) {
 			msg := formatErrorReportMsg(pass, fn.Name.Name, callExpr)
 			log.Printf("Found os.Exit call: %s\n", msg)
-			pass.Report(analysis.Diagnostic{
-				Pos:     callExpr.Pos(),
-				Message: msg,
-			})
+			pass.Reportf(callExpr.Pos(), msg)
 			return false
 		}
 		return true
@@ -115,8 +112,8 @@ func isOsExitCall(callExpr *ast.CallExpr) bool {
 
 func formatErrorReportMsg(pass *analysis.Pass, funcName string, callExpr *ast.CallExpr) string {
 	pos := pass.Fset.Position(callExpr.Pos())
-	return fmt.Sprintf("Using os.Exit call in %s func in file %s at line %d, column %d. Full call: %s",
-		funcName, pos.Filename, pos.Line, pos.Column, exprToString(callExpr))
+	return fmt.Sprintf("using os.Exit call in %s func at line %d, column %d, full call expr: %s",
+		funcName, pos.Line, pos.Column, exprToString(callExpr))
 }
 
 func exprToString(expr ast.Expr) string {
