@@ -1,11 +1,15 @@
 package osexitanalyzer
 
 import (
+	"path/filepath"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"golang.org/x/tools/go/analysis/analysistest"
 )
 
 func TestOsExitAnalyzer(t *testing.T) {
-	analysistest.Run(t, analysistest.TestData(), OsExitAnalyzer, "./...")
+	path, err := filepath.Abs("../../../testdata")
+	require.NoError(t, err, "error finding test data path")
+	analysistest.Run(t, path, NewOsExitAnalyzer(), "./...")
 }

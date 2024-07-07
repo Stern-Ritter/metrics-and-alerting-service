@@ -2,9 +2,13 @@
 package osexitanalyzer
 
 import (
+	"bytes"
+	"fmt"
 	"go/ast"
+	"go/format"
 	"go/parser"
 	"go/token"
+	"log"
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
@@ -14,13 +18,14 @@ const (
 	targetPkgName = "main"
 	targetFuncName
 	generatedCodeCommentPrefix = "// Code generated"
-	errMsg                     = "using os.Exit in main func"
 )
 
-var OsExitAnalyzer = &analysis.Analyzer{
-	Name: "osexit",
-	Doc:  "check for os.Exit calls in main function",
-	Run:  run,
+func NewOsExitAnalyzer() *analysis.Analyzer {
+	return &analysis.Analyzer{
+		Name: "osexit",
+		Doc:  "check for os.Exit calls in main function",
+		Run:  run,
+	}
 }
 
 func run(pass *analysis.Pass) (interface{}, error) {
@@ -35,7 +40,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 		ast.Inspect(f, func(n ast.Node) bool {
 			if fn, ok := isTargetFunc(n, targetFuncName); ok {
-				checkOsExitCall(pass, fn)
+				checkOsExitCall(pass, pass.Fset, f, fn)
 			}
 			return true
 		})
@@ -67,7 +72,10 @@ func isTargetFunc(node ast.Node, funcName string) (*ast.FuncDecl, bool) {
 	return fn, ok && fn.Name.Name == funcName
 }
 
-func checkOsExitCall(pass *analysis.Pass, fn *ast.FuncDecl) {
+func checkOsExitCall(pass *analysis.Pass, fset *token.FileSet, file *ast.File, fn *ast.FuncDecl) {
+	position := fset.Position(file.Pos())
+	filePath := position.Filename
+	log.Printf("Inspecting file: %s function: %s.%s\n", filePath, pass.Pkg.Name(), fn.Name.Name)
 	ast.Inspect(fn.Body, func(n ast.Node) bool {
 		callExpr, ok := n.(*ast.CallExpr)
 		if !ok {
@@ -75,7 +83,12 @@ func checkOsExitCall(pass *analysis.Pass, fn *ast.FuncDecl) {
 		}
 
 		if isOsExitCall(callExpr) {
-			pass.Reportf(callExpr.Pos(), errMsg)
+			msg := formatErrorReportMsg(pass, fn.Name.Name, callExpr)
+			log.Printf("Found os.Exit call: %s\n", msg)
+			pass.Report(analysis.Diagnostic{
+				Pos:     callExpr.Pos(),
+				Message: msg,
+			})
 			return false
 		}
 		return true
@@ -95,5 +108,22 @@ func isOsExitCall(callExpr *ast.CallExpr) bool {
 
 	pkgName := pkgIdent.Name
 	funcName := selExpr.Sel.Name
-	return pkgName == "os" && funcName == "Exit"
+	isOsExit := pkgName == "os" && funcName == "Exit"
+	log.Printf("Checking call: %s.%s - is os.Exit: %t\n", pkgName, funcName, isOsExit)
+	return isOsExit
+}
+
+func formatErrorReportMsg(pass *analysis.Pass, funcName string, callExpr *ast.CallExpr) string {
+	pos := pass.Fset.Position(callExpr.Pos())
+	return fmt.Sprintf("Using os.Exit call in %s func in file %s at line %d, column %d. Full call: %s",
+		funcName, pos.Filename, pos.Line, pos.Column, exprToString(callExpr))
+}
+
+func exprToString(expr ast.Expr) string {
+	var buf bytes.Buffer
+	err := format.Node(&buf, token.NewFileSet(), expr)
+	if err != nil {
+		return "<error>"
+	}
+	return buf.String()
 }

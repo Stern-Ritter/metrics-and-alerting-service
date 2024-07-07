@@ -82,8 +82,8 @@ func main() {
 
 	// add additional analyzers
 	mychecks = append(mychecks,
-		ineffassign.Analyzer,          // check for ineffectual assignments
-		osexitanalyzer.OsExitAnalyzer, // check for os.Exit calls in main function
+		ineffassign.Analyzer,               // check for ineffectual assignments
+		osexitanalyzer.NewOsExitAnalyzer(), // check for os.Exit calls in main function
 	)
 
 	multichecker.Main(
