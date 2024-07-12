@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 
 	"go.uber.org/zap"
@@ -16,7 +17,15 @@ import (
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/utils"
 )
 
+var (
+	buildVersion = "N/A"
+	buildDate    = "N/A"
+	buildCommit  = "N/A"
+)
+
 func main() {
+	printBuildInfo()
+
 	cfg, err := app.GetConfig(config.AgentConfig{
 		SendMetricsEndPoint: "/updates",
 		MetricsBufferSize:   12,
@@ -42,4 +51,8 @@ func main() {
 	if err != nil {
 		logger.Fatal(err.Error(), zap.String("event", "start agent"))
 	}
+}
+
+func printBuildInfo() {
+	fmt.Printf("Build version: %s\nBuild date: %s\nBuild commit: %s\n", buildVersion, buildDate, buildCommit)
 }

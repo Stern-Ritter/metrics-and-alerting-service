@@ -1,9 +1,16 @@
 .PHONY: build-server build-agent build clean test-1 test-2 test-3 test-4 test-5 test-6 test-7 test-8 test-9 test-10 test-11 test-12 test-13 test-14 run-db stop-db remove-db
 
+SERVER_VERSION := 1.01
 SERVER_DIR := cmd/server
 SERVER_OUTPUT := server
+
+AGENT_VERSION := 1.02
 AGENT_DIR := cmd/agent
 AGENT_OUTPUT := agent
+
+BUILD_DATE = $(shell date +'%Y/%m/%d')
+BUILD_COMMIT = $(shell git rev-parse HEAD)
+
 METRICSTEST := metricstest
 
 DB_CONTAINER_NAME=db
@@ -13,14 +20,25 @@ POSTGRES_PASSWORD=postgres
 POSTGRES_DB=postgres
 POSTGRES_PORT=5432
 
+STATIC_LINTER_NAME = multichecker
+STATIC_LINTER_DIR = ./cmd/staticlint
+
 gofmt:
 	goimports -local github.com/Stern-Ritter/metrics-and-alerting-service -w .
 
+build-static-linter:
+	@echo "Building $(STATIC_LINTER_NAME)..."
+	go build -o $(STATIC_LINTER_DIR)/$(STATIC_LINTER_NAME) $(STATIC_LINTER_DIR)/$(STATIC_LINTER_NAME).go
+
+lint: build-static-linter
+	@echo "Running static analysis on the project..."
+	$(STATIC_LINTER_DIR)/$(STATIC_LINTER_NAME) ./...
+
 build-server:
-	cd $(SERVER_DIR) && go build -buildvcs=false -o $(SERVER_OUTPUT) && cd ../..
+	cd $(SERVER_DIR) && go build -buildvcs=false -ldflags "-X main.buildVersion=v$(SERVER_VERSION) -X main.buildDate=$(BUILD_DATE) -X main.buildCommit=$(BUILD_COMMIT)" -o $(SERVER_OUTPUT) && cd ../..
 
 build-agent:
-	cd $(AGENT_DIR) && go build -buildvcs=false -o $(AGENT_OUTPUT) && cd ../..
+	cd $(AGENT_DIR) && go build -buildvcs=false -ldflags "-X main.buildVersion=v$(AGENT_VERSION) -X main.buildDate=$(BUILD_DATE) -X main.buildCommit=$(BUILD_COMMIT)" -o $(AGENT_OUTPUT) && cd ../..
 
 build: build-server build-agent
 
