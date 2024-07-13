@@ -31,6 +31,7 @@ func parseFlags(c *config.AgentConfig) error {
 	flag.IntVar(&c.SendMetricsInterval, "r", 10, "interval for sending metrics to the server in seconds")
 	flag.IntVar(&c.RateLimit, "l", 1, "limit of concurrent requests to the server")
 	flag.StringVar(&c.SecretKey, "k", "", "secret authentication key")
+	flag.StringVar(&c.CryptoKeyPath, "crypto-key", "", "path to secret public key for asymmetric encryption")
 	flag.Parse()
 	err := utils.ValidateHostnamePort(c.SendMetricsURL)
 

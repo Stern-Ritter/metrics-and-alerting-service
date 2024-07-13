@@ -9,5 +9,6 @@ type AgentConfig struct {
 	MetricsBufferSize     int    // The buffer size for metrics channel
 	RateLimit             int    `env:"RATE_LIMIT"` // The size of sending metrics statistics worker pool
 	SecretKey             string `env:"KEY"`        // The secret key for authentication
+	CryptoKeyPath         string `env:"CRYPTO_KEY"` // The path to secret public key for asymmetric encryption
 	LoggerLvl             string // The logging level
 }

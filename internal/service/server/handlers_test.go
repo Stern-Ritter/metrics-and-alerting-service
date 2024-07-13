@@ -110,7 +110,7 @@ func TestUpdateMetricHandlerWithPathVars(t *testing.T) {
 			logger, err := logger.Initialize("info")
 			require.NoError(t, err, "Error init logger")
 			metricService := NewMetricService(mockStorage, logger)
-			s := NewServer(metricService, config, logger)
+			s := NewServer(metricService, config, nil, logger)
 
 			handler := http.HandlerFunc(s.UpdateMetricHandlerWithPathVars)
 
@@ -227,7 +227,7 @@ func TestUpdateMetricHandlerWithBody(t *testing.T) {
 			logger, err := logger.Initialize("info")
 			require.NoError(t, err, "Error init logger")
 			metricService := NewMetricService(mockStorage, logger)
-			s := NewServer(metricService, config, logger)
+			s := NewServer(metricService, config, nil, logger)
 
 			handler := http.HandlerFunc(s.UpdateMetricHandlerWithBody)
 			server := httptest.NewServer(handler)
@@ -359,7 +359,7 @@ func TestUpdateMetricsBatchHandlerWithBody(t *testing.T) {
 			logger, err := logger.Initialize("info")
 			require.NoError(t, err, "Error init logger")
 			metricService := NewMetricService(mockStorage, logger)
-			s := NewServer(metricService, config, logger)
+			s := NewServer(metricService, config, nil, logger)
 
 			handler := http.HandlerFunc(s.UpdateMetricsBatchHandlerWithBody)
 			server := httptest.NewServer(handler)
@@ -441,7 +441,7 @@ func TestGetMetricHandlerWithPathVars(t *testing.T) {
 			logger, err := logger.Initialize("info")
 			require.NoError(t, err, "Error init logger")
 			metricService := NewMetricService(mockStorage, logger)
-			s := NewServer(metricService, config, logger)
+			s := NewServer(metricService, config, nil, logger)
 
 			handler := http.HandlerFunc(s.GetMetricHandlerWithPathVars)
 			server := httptest.NewServer(handler)
@@ -542,7 +542,7 @@ func TestGetMetricHandlerWithBody(t *testing.T) {
 			logger, err := logger.Initialize("info")
 			require.NoError(t, err, "Error init logger")
 			metricService := NewMetricService(mockStorage, logger)
-			s := NewServer(metricService, config, logger)
+			s := NewServer(metricService, config, nil, logger)
 
 			handler := http.HandlerFunc(s.GetMetricHandlerWithBody)
 			server := httptest.NewServer(handler)
@@ -617,7 +617,7 @@ func TestGetMetricsHandler(t *testing.T) {
 			logger, err := logger.Initialize("info")
 			require.NoError(t, err, "Error init logger")
 			metricService := NewMetricService(mockStorage, logger)
-			s := NewServer(metricService, config, logger)
+			s := NewServer(metricService, config, nil, logger)
 
 			handler := http.HandlerFunc(s.GetMetricsHandler)
 			server := httptest.NewServer(handler)

@@ -8,6 +8,9 @@ AGENT_VERSION := 1.02
 AGENT_DIR := cmd/agent
 AGENT_OUTPUT := agent
 
+CERTS_GEN_DIR := cmd/certsgen
+CERTS_GEN_NAME := certsgen
+
 BUILD_DATE = $(shell date +'%Y/%m/%d')
 BUILD_COMMIT = $(shell git rev-parse HEAD)
 
@@ -33,6 +36,13 @@ build-static-linter:
 lint: build-static-linter
 	@echo "Running static analysis on the project..."
 	$(STATIC_LINTER_DIR)/$(STATIC_LINTER_NAME) ./...
+
+build-certs-gen:
+	cd $(CERTS_GEN_DIR) && go build -o ./$(CERTS_GEN_NAME) .
+
+certs-gen: build-certs-gen
+	@echo "Generating private and public keys for asymmetric encryption..."
+	$(CERTS_GEN_DIR)/$(CERTS_GEN_NAME)
 
 build-server:
 	cd $(SERVER_DIR) && go build -buildvcs=false -ldflags "-X main.buildVersion=v$(SERVER_VERSION) -X main.buildDate=$(BUILD_DATE) -X main.buildCommit=$(BUILD_COMMIT)" -o $(SERVER_OUTPUT) && cd ../..

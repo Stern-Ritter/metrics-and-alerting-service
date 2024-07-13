@@ -1,6 +1,7 @@
 package server
 
 import (
+	"crypto/rsa"
 	"database/sql"
 	"net/http"
 	"strings"
@@ -10,6 +11,7 @@ import (
 
 	compress "github.com/Stern-Ritter/metrics-and-alerting-service/internal/compress/server"
 	config "github.com/Stern-Ritter/metrics-and-alerting-service/internal/config/server"
+	crypto "github.com/Stern-Ritter/metrics-and-alerting-service/internal/crypto/server"
 	logger "github.com/Stern-Ritter/metrics-and-alerting-service/internal/logger/server"
 	service "github.com/Stern-Ritter/metrics-and-alerting-service/internal/service/server"
 	storage "github.com/Stern-Ritter/metrics-and-alerting-service/internal/storage/server"
@@ -49,7 +51,18 @@ func Run(config *config.ServerConfig, logger *logger.ServerLogger) error {
 		}
 	}
 
-	server := service.NewServer(mService, config, logger)
+	var rsaPrivateKey *rsa.PrivateKey
+
+	isEncryptionEnabled := len(strings.TrimSpace(config.CryptoKeyPath)) != 0
+	if isEncryptionEnabled {
+		key, err := crypto.GetRSAPrivateKey(config.CryptoKeyPath)
+		if err != nil {
+			logger.Fatal(err.Error(), zap.String("event", "get rsa private key"))
+		}
+		rsaPrivateKey = key
+	}
+
+	server := service.NewServer(mService, config, rsaPrivateKey, logger)
 
 	isFileStorageEnabled := len(strings.TrimSpace(config.FileStoragePath)) != 0
 	if !isDatabaseEnabled && isFileStorageEnabled && config.Restore {
@@ -74,6 +87,7 @@ func addRoutes(s *service.Server) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(s.Logger.LoggerMiddleware)
 	r.Use(s.SignMiddleware)
+	r.Use(s.EncryptMiddleware)
 	r.Use(compress.GzipMiddleware)
 	r.Get("/", s.GetMetricsHandler)
 

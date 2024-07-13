@@ -7,6 +7,7 @@ import (
 	"go.uber.org/zap"
 
 	er "github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
+	logger "github.com/Stern-Ritter/metrics-and-alerting-service/internal/logger/agent"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/monitors"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/utils"
@@ -30,12 +31,12 @@ type AgentMemCache struct {
 	gauges   map[string]metrics.GaugeMetric
 	counters map[string]metrics.CounterMetric
 
-	Logger *zap.Logger
+	Logger *logger.AgentLogger
 }
 
 // NewAgentMemCache is constructor for creating a new AgentMemCache with the provided supported gauge and counter metrics.
 func NewAgentMemCache(supportedGaugeMetrics map[string]metrics.GaugeMetric, supportedCounterMetrics map[string]metrics.CounterMetric,
-	logger *zap.Logger) AgentMemCache {
+	logger *logger.AgentLogger) AgentMemCache {
 	return AgentMemCache{
 		gauges:   supportedGaugeMetrics,
 		counters: supportedCounterMetrics,
