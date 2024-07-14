@@ -1,0 +1,10 @@
+{
+  "address": "localhost:8080",
+  "store_interval": 300,
+  "store_file": "/tmp/metrics-db.json",
+  "restore": true,
+  "database_dsn": "",
+  "sign_key": "secret",
+  "crypto_key": "./certs/private.pem",
+  "logger_level": "info"
+}

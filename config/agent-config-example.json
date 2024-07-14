@@ -1,0 +1,11 @@
+{
+  "address": "localhost:8080",
+  "endpoint": "/updates",
+  "poll_interval": 2,
+  "report_interval": 5,
+  "metrics_buffer_size": 12,
+  "rate_limit": 1,
+  "sign_key": "secret",
+  "crypto_key": "./certs/public.pem",
+  "logger_level": "info"
+}

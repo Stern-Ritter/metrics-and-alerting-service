@@ -89,3 +89,16 @@ func AddProtocolPrefix(url string) string {
 	}
 	return url
 }
+
+// Coalesce returns the first non-zero value from the two provided arguments.
+// If the first value is non-zero, it will be returned.
+// Otherwise, the second value is returned.
+//
+// This function supports the types string, int, and bool.
+func Coalesce[T string | int | bool](firstValue, secondValue T) T {
+	var zeroValue T
+	if firstValue != zeroValue {
+		return firstValue
+	}
+	return secondValue
+}

@@ -21,9 +21,13 @@ func main() {
 	printBuildInfo()
 
 	cfg, err := app.GetConfig(config.AgentConfig{
-		SendMetricsEndPoint: "/updates",
-		MetricsBufferSize:   12,
-		LoggerLvl:           "info",
+		SendMetricsURL:        "localhost:8080",
+		SendMetricsEndPoint:   "/updates",
+		UpdateMetricsInterval: 2,
+		SendMetricsInterval:   5,
+		MetricsBufferSize:     12,
+		RateLimit:             1,
+		LoggerLvl:             "info",
 	})
 	if err != nil {
 		log.Fatalf("%+v", err)

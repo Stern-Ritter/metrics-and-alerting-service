@@ -20,9 +20,12 @@ var (
 
 func main() {
 	printBuildInfo()
-
 	config, err := app.GetConfig(config.ServerConfig{
-		LoggerLvl: "info",
+		URL:             "localhost:8080",
+		StoreInterval:   300,
+		FileStoragePath: "/tmp/metrics-db.json",
+		Restore:         true,
+		LoggerLvl:       "info",
 	})
 	if err != nil {
 		log.Fatalf("%+v", err)

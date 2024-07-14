@@ -9,5 +9,6 @@ type ServerConfig struct {
 	DatabaseDSN     string `env:"DATABASE_DSN"`      // The database DSN
 	SecretKey       string `env:"KEY"`               // The secret key for authentication
 	CryptoKeyPath   string `env:"CRYPTO_KEY"`        // The path to secret private key for asymmetric encryption
+	ConfigFile      string `env:"CONFIG"`            //The path to json config file
 	LoggerLvl       string // The logging level
 }
