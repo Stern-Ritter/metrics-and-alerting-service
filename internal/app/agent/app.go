@@ -3,8 +3,10 @@ package agent
 import (
 	"context"
 	"crypto/rsa"
+	"os/signal"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"go.uber.org/zap"
@@ -21,14 +23,12 @@ import (
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/utils"
 )
 
-// Count of agent setting up and managing tasks
-const (
-	taskCount = 3
-)
-
 // Run starts the agent, setting up and managing tasks.
 // It returns an error if there are issues starting the agent.
 func Run(config *config.AgentConfig, logger *logger.AgentLogger) error {
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+	defer cancel()
+
 	httpClient := gentleman.New()
 	cache := storage.NewAgentMemCache(metrics.SupportedGaugeMetrics, metrics.SupportedCounterMetrics, logger)
 	runtimeMonitor := monitors.RuntimeMonitor{}
@@ -54,20 +54,19 @@ func Run(config *config.AgentConfig, logger *logger.AgentLogger) error {
 	agent.HTTPClient.UseHandler("before dial", agent.EncryptMiddleware)
 	agent.HTTPClient.UseHandler("before dial", agent.SignMiddleware)
 
-	wg := sync.WaitGroup{}
-	wg.Add(taskCount)
+	workersWg := sync.WaitGroup{}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	agent.StartSendMetricsWorkerPool(&workersWg)
 
-	agent.StartSendMetricsWorkerPool()
+	tasksWg := sync.WaitGroup{}
 
-	service.SetInterval(ctx, &wg, agent.UpdateRuntimeMetrics, time.Duration(agent.Config.UpdateMetricsInterval)*time.Second)
-	service.SetInterval(ctx, &wg, agent.UpdateUtilMetrics, time.Duration(agent.Config.UpdateMetricsInterval)*time.Second)
-	service.SetInterval(ctx, &wg, agent.SendMetrics, time.Duration(agent.Config.SendMetricsInterval)*time.Second)
+	service.SetInterval(ctx, &tasksWg, agent.UpdateRuntimeMetrics, time.Duration(agent.Config.UpdateMetricsInterval)*time.Second)
+	service.SetInterval(ctx, &tasksWg, agent.UpdateUtilMetrics, time.Duration(agent.Config.UpdateMetricsInterval)*time.Second)
+	service.SetInterval(ctx, &tasksWg, agent.SendMetrics, time.Duration(agent.Config.SendMetricsInterval)*time.Second)
 
-	wg.Wait()
-	agent.StopTasks()
+	tasksWg.Wait()
+	agent.StopSendMetricsWorkerPool()
+	workersWg.Wait()
 
 	return nil
 }

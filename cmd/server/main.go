@@ -20,6 +20,7 @@ var (
 
 func main() {
 	printBuildInfo()
+
 	config, err := app.GetConfig(config.ServerConfig{
 		URL:             "localhost:8080",
 		StoreInterval:   300,
@@ -38,7 +39,8 @@ func main() {
 
 	err = app.Run(&config, logger)
 	if err != nil {
-		logger.Fatal(err.Error(), zap.String("event", "start server"))
+		logger.Fatal("Failed to start server", zap.String("event", "start server"),
+			zap.Error(err))
 	}
 }
 

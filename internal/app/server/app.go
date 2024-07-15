@@ -1,12 +1,18 @@
 package server
 
 import (
+	"context"
 	"crypto/rsa"
 	"database/sql"
 	"net/http"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
+	"time"
 
 	"github.com/go-chi/chi"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
 	compress "github.com/Stern-Ritter/metrics-and-alerting-service/internal/compress/server"
@@ -22,6 +28,11 @@ import (
 // Run starts the server, setting up the storage and HTTP handlers.
 // It returns an error if there are issues starting the server.
 func Run(config *config.ServerConfig, logger *logger.ServerLogger) error {
+	idleConnsClosed := make(chan struct{})
+
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+
 	isDatabaseEnabled := len(strings.TrimSpace(config.DatabaseDSN)) != 0
 
 	var store storage.Storage
@@ -76,11 +87,42 @@ func Run(config *config.ServerConfig, logger *logger.ServerLogger) error {
 	}
 
 	r := addRoutes(server)
-	err := http.ListenAndServe(server.Config.URL, r)
-	if err != nil {
-		server.Logger.Fatal(err.Error(), zap.String("event", "start server"))
+
+	srv := &http.Server{
+		Addr:    server.Config.URL,
+		Handler: r,
 	}
-	return err
+
+	go func() {
+		<-signals
+		server.Logger.Info("Shutting down server", zap.String("event", "shutdown server"))
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		if err := srv.Shutdown(ctx); err != nil {
+			server.Logger.Error("Failed to shutdown server", zap.String("event", "shutdown server"),
+				zap.Error(err))
+		}
+
+		err := server.MetricService.SaveStateToFile(server.Config.FileStoragePath)
+		if err != nil {
+			server.Logger.Error("Failed to save state to file", zap.String("event", "save state to file"),
+				zap.Error(err))
+		}
+
+		close(idleConnsClosed)
+	}()
+
+	server.Logger.Info("Starting server", zap.String("event", "start server"))
+	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		return err
+	}
+
+	<-idleConnsClosed
+	server.Logger.Info("Server shutdown complete", zap.String("event", "shutdown server"))
+
+	return nil
 }
 
 func addRoutes(s *service.Server) *chi.Mux {
