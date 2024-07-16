@@ -54,11 +54,6 @@ func (s *Server) SignMiddleware(next http.Handler) http.Handler {
 		needCheckSign := len(strings.TrimSpace(s.Config.SecretKey)) != 0 && len(strings.TrimSpace(sign)) != 0
 
 		if hasBody && needCheckSign {
-			if len(sign) == 0 {
-				http.Error(w, "Unsigned request body", http.StatusBadRequest)
-				return
-			}
-
 			body, err := io.ReadAll(r.Body)
 			if err != nil {
 				http.Error(w, "Read request body error", http.StatusInternalServerError)

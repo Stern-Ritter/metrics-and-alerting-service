@@ -30,7 +30,7 @@ var (
 	updatedExistingCounterMetricValue    = int64(23)
 )
 
-func TestUpdateMetric(t *testing.T) {
+func TestMemoryStorage_UpdateMetric(t *testing.T) {
 	testCases := []struct {
 		name string
 
@@ -132,7 +132,7 @@ func TestUpdateMetric(t *testing.T) {
 	}
 }
 
-func TestUpdateMetrics(t *testing.T) {
+func TestMemoryStorage_UpdateMetrics(t *testing.T) {
 	testCases := []struct {
 		name string
 
@@ -270,7 +270,7 @@ func TestUpdateMetrics(t *testing.T) {
 	}
 }
 
-func TestGetMetric(t *testing.T) {
+func TestMemoryStorage_GetMetric(t *testing.T) {
 	testCases := []struct {
 		name              string
 		gaugesInitState   map[string]metrics.GaugeMetric
@@ -332,7 +332,7 @@ func TestGetMetric(t *testing.T) {
 	}
 }
 
-func TestSaveAndLoadMetrics(t *testing.T) {
+func TestMemoryStorage_SaveAndLoadMetrics(t *testing.T) {
 	testCases := []struct {
 		name                     string
 		gaugesInitState          map[string]metrics.GaugeMetric
