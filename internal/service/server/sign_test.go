@@ -107,6 +107,7 @@ func TestSignMiddleware(t *testing.T) {
 			resp := r.Result()
 			data, err := io.ReadAll(resp.Body)
 			require.NoError(t, err, "unexpected error when read response body")
+			defer resp.Body.Close()
 
 			gotStatus := resp.StatusCode
 			gotSign := resp.Header.Get(signKey)
