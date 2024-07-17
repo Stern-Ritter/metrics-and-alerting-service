@@ -20,6 +20,9 @@ func GetRSAPublicKey(fPath string) (*rsa.PublicKey, error) {
 	}
 
 	publicKeyBlock, _ := pem.Decode(publicKeyPEM)
+	if publicKeyBlock == nil {
+		return nil, fmt.Errorf("parse public key for asymmetric encryption: invalid PEM")
+	}
 	publicKey, err := x509.ParsePKIXPublicKey(publicKeyBlock.Bytes)
 	if err != nil {
 		return nil, fmt.Errorf("parse public key for asymmetric encryption: %w", err)

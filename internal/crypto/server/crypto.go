@@ -20,6 +20,9 @@ func GetRSAPrivateKey(fPath string) (*rsa.PrivateKey, error) {
 	}
 
 	privateKeyBlock, _ := pem.Decode(privateKeyPEM)
+	if privateKeyBlock == nil {
+		return nil, fmt.Errorf("parse private key for asymmetric encryption: invalid PEM")
+	}
 	rsaPrivateKey, err := x509.ParsePKCS1PrivateKey(privateKeyBlock.Bytes)
 	if err != nil {
 		return nil, fmt.Errorf("parse private key for asymmetric encryption: %w", err)

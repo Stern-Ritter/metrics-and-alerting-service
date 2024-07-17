@@ -15,22 +15,23 @@ import (
 // The decrypted body is then passed along the middleware chain.
 func (s *Server) EncryptMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		hasBody := r.Body != http.NoBody
 		isEncryptionEnabled := s.rsaPrivateKey != nil
-
-		if hasBody && isEncryptionEnabled {
-			encryptedBody, err := io.ReadAll(r.Body)
+		if isEncryptionEnabled {
+			body, err := io.ReadAll(r.Body)
 			if err != nil {
-				http.Error(w, "Read encrypted request body error", http.StatusBadRequest)
+				http.Error(w, "Read request body error", http.StatusBadRequest)
 				return
 			}
-			body, err := rsa.DecryptPKCS1v15(rand.Reader, s.rsaPrivateKey, encryptedBody)
-			if err != nil {
-				http.Error(w, "Decrypt request body error", http.StatusBadRequest)
-			}
 
-			r.Body = io.NopCloser(bytes.NewReader(body))
-			r.ContentLength = int64(len(body))
+			if len(body) > 0 {
+				decryptedBody, err := rsa.DecryptPKCS1v15(rand.Reader, s.rsaPrivateKey, body)
+				if err != nil {
+					http.Error(w, "Decrypt request body error", http.StatusBadRequest)
+				}
+
+				r.Body = io.NopCloser(bytes.NewReader(decryptedBody))
+				r.ContentLength = int64(len(decryptedBody))
+			}
 		}
 
 		next.ServeHTTP(w, r)

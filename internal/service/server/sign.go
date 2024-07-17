@@ -50,10 +50,12 @@ func (s *signWriter) WriteHeader(statusCode int) {
 func (s *Server) SignMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		sign := r.Header.Get(signKey)
-		hasBody := r.Body != http.NoBody
-		needCheckSign := len(strings.TrimSpace(s.Config.SecretKey)) != 0 && len(strings.TrimSpace(sign)) != 0
 
-		if hasBody && needCheckSign {
+		hasSign := len(strings.TrimSpace(sign)) > 0
+		needCheckSign := len(strings.TrimSpace(s.Config.SecretKey)) > 0
+		needSignResponseBody := len(strings.TrimSpace(s.Config.SecretKey)) > 0
+
+		if hasSign && needCheckSign {
 			body, err := io.ReadAll(r.Body)
 			if err != nil {
 				http.Error(w, "Read request body error", http.StatusInternalServerError)
@@ -61,15 +63,17 @@ func (s *Server) SignMiddleware(next http.Handler) http.Handler {
 			}
 			r.Body = io.NopCloser(bytes.NewBuffer(body))
 
-			err = checkSign(body, sign, s.Config.SecretKey)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
-				return
+			if len(body) > 0 {
+				err = checkSign(body, sign, s.Config.SecretKey)
+				if err != nil {
+					http.Error(w, "Invalid request body sign", http.StatusBadRequest)
+					return
+				}
 			}
 		}
 
 		ow := w
-		if needCheckSign {
+		if needSignResponseBody {
 			ow = NewSignWriter(w, s.Config.SecretKey)
 		}
 
@@ -80,7 +84,7 @@ func (s *Server) SignMiddleware(next http.Handler) http.Handler {
 func checkSign(value []byte, sign string, secretKey string) error {
 	decodedSign, err := hex.DecodeString(sign)
 	if err != nil {
-		return errors.NewUnsignedRequest("Invalid request sign", nil)
+		return errors.NewUnsignedRequest("Invalid request body sign", nil)
 	}
 
 	h := hmac.New(sha256.New, []byte(secretKey))
@@ -88,7 +92,7 @@ func checkSign(value []byte, sign string, secretKey string) error {
 	hash := h.Sum(nil)
 
 	if !hmac.Equal(decodedSign, hash) {
-		return errors.NewUnsignedRequest("Invalid request sign", nil)
+		return errors.NewUnsignedRequest("Invalid request body sign", nil)
 	}
 
 	return nil

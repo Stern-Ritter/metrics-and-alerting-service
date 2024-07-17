@@ -21,14 +21,22 @@ func (a *Agent) EncryptMiddleware(ctx *context.Context, h context.Handler) {
 		body, err := io.ReadAll(ctx.Request.Body)
 		if err != nil {
 			ctx.Error = fmt.Errorf("middleware body encryption error: %w", err)
-		}
-		encryptedBody, err := rsa.EncryptPKCS1v15(rand.Reader, a.rsaPublicKey, body)
-		if err != nil {
-			ctx.Error = fmt.Errorf("middleware body encryption error: %w", err)
+			h.Next(ctx)
+			return
 		}
 
-		ctx.Request.Body = io.NopCloser(bytes.NewReader(encryptedBody))
-		ctx.Request.ContentLength = int64(len(encryptedBody))
+		if len(body) > 0 {
+			encryptedBody, err := rsa.EncryptPKCS1v15(rand.Reader, a.rsaPublicKey, body)
+			if err != nil {
+				ctx.Error = fmt.Errorf("middleware body encryption error: %w", err)
+				h.Next(ctx)
+				return
+			}
+
+			ctx.Request.Body = io.NopCloser(bytes.NewReader(encryptedBody))
+			ctx.Request.ContentLength = int64(len(encryptedBody))
+		}
 	}
+
 	h.Next(ctx)
 }
