@@ -13,19 +13,19 @@ import (
 	config "github.com/Stern-Ritter/metrics-and-alerting-service/internal/config/agent"
 )
 
-type MockHandler struct {
+type SignMockHandler struct {
 	mock.Mock
 }
 
-func (h *MockHandler) Next(ctx *context.Context) {
+func (h *SignMockHandler) Next(ctx *context.Context) {
 	h.Called(ctx)
 }
 
-func (h *MockHandler) Stop(ctx *context.Context) {
+func (h *SignMockHandler) Stop(ctx *context.Context) {
 	h.Called(ctx)
 }
 
-func (h *MockHandler) Error(ctx *context.Context, err error) {
+func (h *SignMockHandler) Error(ctx *context.Context, err error) {
 	h.Called(ctx, err)
 }
 
@@ -72,7 +72,7 @@ func TestSignMiddleware(t *testing.T) {
 				},
 			}
 
-			mockHandler := &MockHandler{}
+			mockHandler := &SignMockHandler{}
 			mockHandler.On("Next", ctx).Once()
 
 			agent.SignMiddleware(ctx, mockHandler)

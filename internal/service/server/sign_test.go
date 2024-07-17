@@ -54,7 +54,7 @@ func TestSignMiddleware(t *testing.T) {
 			response: response{
 				status: http.StatusBadRequest,
 				sign:   "",
-				body:   "Invalid request sign\n",
+				body:   "Invalid request body sign\n",
 			},
 		},
 		{
@@ -97,17 +97,19 @@ func TestSignMiddleware(t *testing.T) {
 			}
 
 			handler := server.SignMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				_, _ = w.Write([]byte(tt.request.body))
+				body, _ := io.ReadAll(r.Body)
+				_, _ = w.Write(body)
 			}))
 
 			r := httptest.NewRecorder()
 			handler.ServeHTTP(r, req)
 
-			data, err := io.ReadAll(r.Body)
-			require.NoError(t, err, "unexpected error reading body")
+			resp := r.Result()
+			data, err := io.ReadAll(resp.Body)
+			require.NoError(t, err, "unexpected error when read response body")
 
-			gotStatus := r.Code
-			gotSign := r.Header().Get(signKey)
+			gotStatus := resp.StatusCode
+			gotSign := resp.Header.Get(signKey)
 			gotBody := string(data)
 			assert.Equal(t, tt.response.status, gotStatus, "response status code should be %d, got %d",
 				tt.response.status, gotStatus)
