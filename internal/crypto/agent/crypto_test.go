@@ -1,6 +1,10 @@
 package agent
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"os"
 	"testing"
 
@@ -11,20 +15,8 @@ import (
 func TestGetRSAPublicKey(t *testing.T) {
 	t.Run("should return RSA public key when file exits and contains valid PEM block with RSA public key",
 		func(t *testing.T) {
-			validPEM := `-----BEGIN PUBLIC KEY-----
-MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEArB/xf+O7cxZDgl1+ndk2
-m/tn3UotjmxQMj6k48uZR6THMEnO3XUB0cyUPXU80Odd/K1nxHyZwRRNDfTGeO61
-yNsX7a6j+R4vnM2+qhyCQ/ymYqNZ6D2NyzqJl1XODL9DiFBoZImP12Y6j+Q4NkYB
-2KY7dhDpliqfC/wtZ3FTczeHBetGy1A54mn351FV7+VcSrOuhu+KCz/fLBxeCcqq
-oWgeFgLNPJnEwjejK+gX84O/Etak+dILldlcMQyiOapnSUHgIfRtPQrMjL4DtsrD
-AQQ1+viz4g1OrF0KAEFC/yjnEoeX22rkm9oQO6RjnM1MqzP9sNTKin5N+mz9AV09
-l/SYLczXaLggbt/ufLM5h6pDEmEH0gz616VK425fKP9CNaX9mlnIq8yvfcG1CL0t
-kaoIhPDjZsi6MX/+mDYuNzJLqxQgtDXoQ6nAYfGkSEfYNNHIVz5REPXfn3TRtUia
-gHx6Yhpj3988PD9JvAUrxKi/KHhjnWSNBJOQ8tEOrjTyPMYHi5pMdwFso/fzTHFt
-MLwrVyx7EX+Pp9NKUNbnY9PfHPj2xnUUxGEWKSMbHjviGBfxoHewuPluN45m/7mR
-/Mf+cWN8DWRyzN04cT00Ba7hI3NSubemVdM3wuBgEJ680VRx2IqEAo1cNc7OjYbT
-mas6/wc1G8V6aMF0k06PSQMCAwEAAQ==
------END PUBLIC KEY-----`
+			validPEM, err := generateValidRSAPublicKeyPEM()
+			require.NoError(t, err, "unexpect error when generate valid RSA public key")
 			tmp, err := os.CreateTemp("", "public-key-*.pem")
 			require.NoError(t, err, "unexpected error when create temp file")
 			_, err = tmp.Write([]byte(validPEM))
@@ -47,9 +39,7 @@ mas6/wc1G8V6aMF0k06PSQMCAwEAAQ==
 
 	t.Run("should return error when file exits and contains invalid PEM block with RSA public key",
 		func(t *testing.T) {
-			invalidPEM := `-----BEGIN PUBLIC KEY-----
-invalid PEM block
------END PUBLIC KEY-----`
+			invalidPEM := generateInvalidPEM()
 			tmp, err := os.CreateTemp("", "public-key-*.pem")
 			require.NoError(t, err, "unexpected error when create temp file")
 			_, err = tmp.Write([]byte(invalidPEM))
@@ -64,11 +54,7 @@ invalid PEM block
 		})
 
 	t.Run("should return error when file exits and contains valid PEM block with non RSA public key", func(t *testing.T) {
-		nonRSAPEM := `-----BEGIN PUBLIC KEY-----
-MHYwEAYHKoZIzj0CAQYFK4EEACIDYgAEdH2FQczFvIQaiBgAcnlKSnmFsEAKrmFz
-eB8yBZBsIr3jNkGeITIkDkAAQ0YyJGBB4jDqOG5r+3lKx7R8GhfTi/xt6n8LVZUS
-hwlH3TfglRAVJg1dQxxXmnQXsp45Im1t
------END PUBLIC KEY-----`
+		nonRSAPEM := generateNonRSAPublicKeyPEM()
 		temp, err := os.CreateTemp("", "public-key-*.pem")
 		require.NoError(t, err, "unexpected error when create temp file")
 		_, err = temp.Write([]byte(nonRSAPEM))
@@ -81,4 +67,35 @@ hwlH3TfglRAVJg1dQxxXmnQXsp45Im1t
 
 		assert.Error(t, err, "should return error")
 	})
+}
+
+func generateValidRSAPublicKeyPEM() (string, error) {
+	privateKey, err := rsa.GenerateKey(rand.Reader, 4096)
+	if err != nil {
+		return "", err
+	}
+	key := &privateKey.PublicKey
+	publicKey, err := x509.MarshalPKIXPublicKey(key)
+	if err != nil {
+		return "", err
+	}
+	pemBlock := pem.EncodeToMemory(&pem.Block{
+		Type:  "PUBLIC KEY",
+		Bytes: publicKey,
+	})
+	return string(pemBlock), nil
+}
+
+func generateInvalidPEM() string {
+	return `-----BEGIN PUBLIC KEY-----
+invalid PEM block
+-----END PUBLIC KEY-----`
+}
+
+func generateNonRSAPublicKeyPEM() string {
+	return `-----BEGIN PUBLIC KEY-----
+MHYwEAYHKoZIzj0CAQYFK4EEACIDYgAEdH2FQczFvIQaiBgAcnlKSnmFsEAKrmFz
+eB8yBZBsIr3jNkGeITIkDkAAQ0YyJGBB4jDqOG5r+3lKx7R8GhfTi/xt6n8LVZUS
+hwlH3TfglRAVJg1dQxxXmnQXsp45Im1t
+-----END PUBLIC KEY-----`
 }

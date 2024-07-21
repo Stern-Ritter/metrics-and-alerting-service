@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -44,7 +45,8 @@ func GetConfig(defaultCfg config.AgentConfig) (config.AgentConfig, error) {
 	}
 
 	cfgFile := strings.TrimSpace(cfg.ConfigFile)
-	if len(cfgFile) > 0 {
+	needParseJSONConfig := len(cfgFile) > 0
+	if needParseJSONConfig {
 		err = parseJSONConfig(&cfg, cfgFile)
 		if err != nil {
 			return cfg, err
@@ -52,6 +54,8 @@ func GetConfig(defaultCfg config.AgentConfig) (config.AgentConfig, error) {
 	}
 
 	mergeDefaultConfig(&cfg, defaultCfg)
+
+	trimStringVarsSpaces(&cfg)
 
 	err = validateConfig(cfg)
 	if err != nil {
@@ -79,7 +83,9 @@ func parseJSONConfig(cfg *config.AgentConfig, fPath string) error {
 	}
 
 	jsonCfg := jsonConfig{}
-	err = json.Unmarshal(data, &jsonCfg)
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.DisallowUnknownFields()
+	err = dec.Decode(&jsonCfg)
 	if err != nil {
 		return fmt.Errorf("parse config file %s: %w", fPath, err)
 	}
@@ -112,6 +118,15 @@ func mergeDefaultConfig(cfg *config.AgentConfig, defaultCgf config.AgentConfig) 
 	cfg.CryptoKeyPath = utils.Coalesce(cfg.CryptoKeyPath, defaultCgf.CryptoKeyPath)
 	cfg.ConfigFile = utils.Coalesce(cfg.ConfigFile, defaultCgf.ConfigFile)
 	cfg.LoggerLvl = utils.Coalesce(cfg.LoggerLvl, defaultCgf.LoggerLvl)
+}
+
+func trimStringVarsSpaces(cfg *config.AgentConfig) {
+	cfg.SendMetricsURL = strings.TrimSpace(cfg.SendMetricsURL)
+	cfg.SendMetricsEndPoint = strings.TrimSpace(cfg.SendMetricsEndPoint)
+	cfg.SecretKey = strings.TrimSpace(cfg.SecretKey)
+	cfg.CryptoKeyPath = strings.TrimSpace(cfg.CryptoKeyPath)
+	cfg.ConfigFile = strings.TrimSpace(cfg.ConfigFile)
+	cfg.LoggerLvl = strings.TrimSpace(cfg.LoggerLvl)
 }
 
 func validateConfig(cfg config.AgentConfig) error {

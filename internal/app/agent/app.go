@@ -2,9 +2,7 @@ package agent
 
 import (
 	"context"
-	"crypto/rsa"
 	"os/signal"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -14,7 +12,6 @@ import (
 
 	compress "github.com/Stern-Ritter/metrics-and-alerting-service/internal/compress/agent"
 	config "github.com/Stern-Ritter/metrics-and-alerting-service/internal/config/agent"
-	crypto "github.com/Stern-Ritter/metrics-and-alerting-service/internal/crypto/agent"
 	logger "github.com/Stern-Ritter/metrics-and-alerting-service/internal/logger/agent"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/monitors"
@@ -35,16 +32,10 @@ func Run(config *config.AgentConfig, logger *logger.AgentLogger) error {
 	utilMonitor := monitors.UtilMonitor{}
 	random := utils.NewRandom()
 
-	var rsaPublicKey *rsa.PublicKey
-
-	isEncryptionEnabled := len(strings.TrimSpace(config.CryptoKeyPath)) != 0
-	if isEncryptionEnabled {
-		key, err := crypto.GetRSAPublicKey(config.CryptoKeyPath)
-		if err != nil {
-			logger.Fatal(err.Error(), zap.String("event", "get rsa public key"))
-			return err
-		}
-		rsaPublicKey = key
+	rsaPublicKey, err := service.GetRSAPublicKey(config.CryptoKeyPath)
+	if err != nil {
+		logger.Fatal(err.Error(), zap.String("event", "get rsa public key"))
+		return err
 	}
 
 	agent := service.NewAgent(httpClient, &cache, &runtimeMonitor, &utilMonitor, &random, config, rsaPublicKey, logger)

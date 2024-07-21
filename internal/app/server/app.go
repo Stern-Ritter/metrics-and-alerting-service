@@ -2,12 +2,10 @@ package server
 
 import (
 	"context"
-	"crypto/rsa"
 	"database/sql"
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
@@ -17,7 +15,6 @@ import (
 
 	compress "github.com/Stern-Ritter/metrics-and-alerting-service/internal/compress/server"
 	config "github.com/Stern-Ritter/metrics-and-alerting-service/internal/config/server"
-	crypto "github.com/Stern-Ritter/metrics-and-alerting-service/internal/crypto/server"
 	logger "github.com/Stern-Ritter/metrics-and-alerting-service/internal/logger/server"
 	service "github.com/Stern-Ritter/metrics-and-alerting-service/internal/service/server"
 	storage "github.com/Stern-Ritter/metrics-and-alerting-service/internal/storage/server"
@@ -33,7 +30,7 @@ func Run(config *config.ServerConfig, logger *logger.ServerLogger) error {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 
-	isDatabaseEnabled := len(strings.TrimSpace(config.DatabaseDSN)) != 0
+	isDatabaseEnabled := len(config.DatabaseDSN) != 0
 
 	var store storage.Storage
 
@@ -62,20 +59,15 @@ func Run(config *config.ServerConfig, logger *logger.ServerLogger) error {
 		}
 	}
 
-	var rsaPrivateKey *rsa.PrivateKey
-
-	isEncryptionEnabled := len(strings.TrimSpace(config.CryptoKeyPath)) != 0
-	if isEncryptionEnabled {
-		key, err := crypto.GetRSAPrivateKey(config.CryptoKeyPath)
-		if err != nil {
-			logger.Fatal(err.Error(), zap.String("event", "get rsa private key"))
-		}
-		rsaPrivateKey = key
+	rsaPrivateKey, err := service.GetRSAPrivateKey(config.CryptoKeyPath)
+	if err != nil {
+		logger.Fatal(err.Error(), zap.String("event", "get rsa private key"))
+		return err
 	}
 
 	server := service.NewServer(mService, config, rsaPrivateKey, logger)
 
-	isFileStorageEnabled := len(strings.TrimSpace(config.FileStoragePath)) != 0
+	isFileStorageEnabled := len(config.FileStoragePath) != 0
 	if !isDatabaseEnabled && isFileStorageEnabled && config.Restore {
 		if err := server.MetricService.RestoreStateFromFile(config.FileStoragePath); err != nil {
 			server.Logger.Fatal(err.Error(), zap.String("event", "restore storage state from file"))
@@ -97,7 +89,7 @@ func Run(config *config.ServerConfig, logger *logger.ServerLogger) error {
 		<-signals
 		server.Logger.Info("Shutting down server", zap.String("event", "shutdown server"))
 
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(server.Config.ShutdownTimeout)*time.Second)
 		defer cancel()
 
 		if err := srv.Shutdown(ctx); err != nil {

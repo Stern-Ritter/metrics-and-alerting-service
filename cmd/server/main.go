@@ -26,6 +26,7 @@ func main() {
 		StoreInterval:   300,
 		FileStoragePath: "/tmp/metrics-db.json",
 		Restore:         true,
+		ShutdownTimeout: 5,
 		LoggerLvl:       "info",
 	})
 	if err != nil {

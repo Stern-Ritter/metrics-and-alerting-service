@@ -6,7 +6,28 @@ import (
 	"crypto/rsa"
 	"io"
 	"net/http"
+
+	crypto "github.com/Stern-Ritter/metrics-and-alerting-service/internal/crypto/server"
 )
+
+// GetRSAPrivateKey reads an RSA private key from a PEM-encoded file.
+//
+// This function checks if the provided path is not empty. If the path is
+// provided, it attempts to read the RSA private key from the specified file.
+func GetRSAPrivateKey(path string) (*rsa.PrivateKey, error) {
+	var rsaPrivateKey *rsa.PrivateKey
+
+	isEncryptionEnabled := len(path) != 0
+	if isEncryptionEnabled {
+		key, err := crypto.GetRSAPrivateKey(path)
+		if err != nil {
+			return nil, err
+		}
+		rsaPrivateKey = key
+	}
+
+	return rsaPrivateKey, nil
+}
 
 // EncryptMiddleware is a middleware that decrypts the request body using RSA encryption.
 //

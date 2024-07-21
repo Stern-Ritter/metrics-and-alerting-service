@@ -6,5 +6,6 @@
   "database_dsn": "",
   "sign_key": "secret",
   "crypto_key": "./certs/private.pem",
+  "shutdown_timeout": 5,
   "logger_level": "info"
 }

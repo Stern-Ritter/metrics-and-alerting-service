@@ -21,6 +21,7 @@ type jsonConfig struct {
 	DatabaseDSN     string `json:"database_dsn"`
 	SecretKey       string `json:"sign_key"`
 	CryptoKeyPath   string `json:"crypto_key"`
+	ShutdownTimeout int    `json:"shutdown_timeout"`
 	LoggerLvl       string `json:"logger_level"`
 }
 
@@ -43,7 +44,8 @@ func GetConfig(defaultCfg config.ServerConfig) (config.ServerConfig, error) {
 	}
 
 	cfgFile := strings.TrimSpace(cfg.ConfigFile)
-	if len(cfgFile) > 0 {
+	needParseJSONConfig := len(cfgFile) > 0
+	if needParseJSONConfig {
 		err = parseJSONConfig(&cfg, cfgFile)
 		if err != nil {
 			return cfg, err
@@ -51,6 +53,8 @@ func GetConfig(defaultCfg config.ServerConfig) (config.ServerConfig, error) {
 	}
 
 	mergeDefaultConfig(&cfg, defaultCfg)
+
+	trimStringVarsSpaces(&cfg)
 
 	err = validateConfig(cfg)
 	if err != nil {
@@ -109,6 +113,16 @@ func mergeDefaultConfig(cfg *config.ServerConfig, defaultCfg config.ServerConfig
 	cfg.CryptoKeyPath = utils.Coalesce(cfg.CryptoKeyPath, defaultCfg.CryptoKeyPath)
 	cfg.ConfigFile = utils.Coalesce(cfg.ConfigFile, defaultCfg.ConfigFile)
 	cfg.LoggerLvl = utils.Coalesce(cfg.LoggerLvl, defaultCfg.LoggerLvl)
+}
+
+func trimStringVarsSpaces(cfg *config.ServerConfig) {
+	cfg.URL = strings.TrimSpace(cfg.URL)
+	cfg.FileStoragePath = strings.TrimSpace(cfg.FileStoragePath)
+	cfg.DatabaseDSN = strings.TrimSpace(cfg.DatabaseDSN)
+	cfg.SecretKey = strings.TrimSpace(cfg.SecretKey)
+	cfg.CryptoKeyPath = strings.TrimSpace(cfg.CryptoKeyPath)
+	cfg.ConfigFile = strings.TrimSpace(cfg.ConfigFile)
+	cfg.LoggerLvl = strings.TrimSpace(cfg.LoggerLvl)
 }
 
 func validateConfig(cfg config.ServerConfig) error {

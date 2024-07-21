@@ -8,7 +8,28 @@ import (
 	"io"
 
 	"gopkg.in/h2non/gentleman.v2/context"
+
+	crypto "github.com/Stern-Ritter/metrics-and-alerting-service/internal/crypto/agent"
 )
+
+// GetRSAPublicKey reads an RSA public key from a PEM-encoded file.
+//
+// This function checks if the provided path is not empty. If the path is
+// provided, it attempts to read the RSA public key from the specified file.
+func GetRSAPublicKey(path string) (*rsa.PublicKey, error) {
+	var rsaPublicKey *rsa.PublicKey
+
+	isEncryptionEnabled := len(path) != 0
+	if isEncryptionEnabled {
+		key, err := crypto.GetRSAPublicKey(path)
+		if err != nil {
+			return nil, err
+		}
+		rsaPublicKey = key
+	}
+
+	return rsaPublicKey, nil
+}
 
 // EncryptMiddleware is a middleware that encrypts the request body using RSA encryption.
 //
