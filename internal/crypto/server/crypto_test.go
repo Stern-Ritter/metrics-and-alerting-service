@@ -36,7 +36,8 @@ func TestGetRSAPrivateKey(t *testing.T) {
 	})
 
 	t.Run("should return error when file exists and contains invalid PEM block with RSA private key", func(t *testing.T) {
-		invalidPEM := generateInvalidPEM()
+		invalidPEM, err := readInvalidPEM()
+		require.NoError(t, err, "unexpected error when read invalid private key PEM")
 		tmp, err := os.CreateTemp("", "private-key-*.pem")
 		require.NoError(t, err, "unexpected error when create temp file")
 		_, err = tmp.Write([]byte(invalidPEM))
@@ -64,8 +65,10 @@ func generateValidRSAPrivateKeyPEM() (string, error) {
 	return string(pemBlock), nil
 }
 
-func generateInvalidPEM() string {
-	return `-----BEGIN RSA PRIVATE KEY-----
-invalid PEM block
------END RSA PRIVATE KEY-----`
+func readInvalidPEM() (string, error) {
+	pemBlock, err := os.ReadFile("../../../testdata/crypto/invalid_private_key.pem")
+	if err != nil {
+		return "", err
+	}
+	return string(pemBlock), nil
 }

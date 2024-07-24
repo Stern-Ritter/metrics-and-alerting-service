@@ -14,15 +14,15 @@ import (
 )
 
 type jsonConfig struct {
-	URL             string `json:"address"`
-	StoreInterval   int    `json:"store_interval"`
-	FileStoragePath string `json:"store_file"`
-	Restore         bool   `json:"restore"`
-	DatabaseDSN     string `json:"database_dsn"`
-	SecretKey       string `json:"sign_key"`
-	CryptoKeyPath   string `json:"crypto_key"`
-	ShutdownTimeout int    `json:"shutdown_timeout"`
-	LoggerLvl       string `json:"logger_level"`
+	URL             string `json:"address,omitempty"`
+	StoreInterval   int    `json:"store_interval,omitempty"`
+	FileStoragePath string `json:"store_file,omitempty"`
+	Restore         bool   `json:"restore,omitempty"`
+	DatabaseDSN     string `json:"database_dsn,omitempty"`
+	SecretKey       string `json:"sign_key,omitempty"`
+	CryptoKeyPath   string `json:"crypto_key,omitempty"`
+	ShutdownTimeout int    `json:"shutdown_timeout,omitempty"`
+	LoggerLvl       string `json:"logger_level,omitempty"`
 }
 
 // GetConfig initializes the server config by parsing command-line flags, environment variables, and a JSON config file.

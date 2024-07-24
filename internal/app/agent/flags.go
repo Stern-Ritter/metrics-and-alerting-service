@@ -15,15 +15,15 @@ import (
 )
 
 type jsonConfig struct {
-	SendMetricsURL        string `json:"address"`
-	SendMetricsEndPoint   string `json:"endpoint"`
-	UpdateMetricsInterval int    `json:"poll_interval"`
-	SendMetricsInterval   int    `json:"report_interval"`
-	MetricsBufferSize     int    `json:"metrics_buffer_size"`
-	RateLimit             int    `json:"rate_limit"`
-	SecretKey             string `json:"sign_key"`
-	CryptoKeyPath         string `json:"crypto_key"`
-	LoggerLvl             string `json:"logger_level"`
+	SendMetricsURL        string `json:"address,omitempty"`
+	SendMetricsEndPoint   string `json:"endpoint,omitempty"`
+	UpdateMetricsInterval int    `json:"poll_interval,omitempty"`
+	SendMetricsInterval   int    `json:"report_interval,omitempty"`
+	MetricsBufferSize     int    `json:"metrics_buffer_size,omitempty"`
+	RateLimit             int    `json:"rate_limit,omitempty"`
+	SecretKey             string `json:"sign_key,omitempty"`
+	CryptoKeyPath         string `json:"crypto_key,omitempty"`
+	LoggerLvl             string `json:"logger_level,omitempty"`
 }
 
 // GetConfig initializes the agent config by parsing command-line flags, environment variables, and a JSON config file.

@@ -39,7 +39,8 @@ func TestGetRSAPublicKey(t *testing.T) {
 
 	t.Run("should return error when file exits and contains invalid PEM block with RSA public key",
 		func(t *testing.T) {
-			invalidPEM := generateInvalidPEM()
+			invalidPEM, err := readInvalidPEM()
+			require.NoError(t, err, "unexpected error when read invalid private key PEM")
 			tmp, err := os.CreateTemp("", "public-key-*.pem")
 			require.NoError(t, err, "unexpected error when create temp file")
 			_, err = tmp.Write([]byte(invalidPEM))
@@ -54,7 +55,8 @@ func TestGetRSAPublicKey(t *testing.T) {
 		})
 
 	t.Run("should return error when file exits and contains valid PEM block with non RSA public key", func(t *testing.T) {
-		nonRSAPEM := generateNonRSAPublicKeyPEM()
+		nonRSAPEM, err := readNonRSAPublicKeyPEM()
+		require.NoError(t, err, "unexpected error when read non rsa public key PEM")
 		temp, err := os.CreateTemp("", "public-key-*.pem")
 		require.NoError(t, err, "unexpected error when create temp file")
 		_, err = temp.Write([]byte(nonRSAPEM))
@@ -86,16 +88,18 @@ func generateValidRSAPublicKeyPEM() (string, error) {
 	return string(pemBlock), nil
 }
 
-func generateInvalidPEM() string {
-	return `-----BEGIN PUBLIC KEY-----
-invalid PEM block
------END PUBLIC KEY-----`
+func readInvalidPEM() (string, error) {
+	pemBlock, err := os.ReadFile("../../../testdata/crypto/invalid_private_key.pem")
+	if err != nil {
+		return "", err
+	}
+	return string(pemBlock), nil
 }
 
-func generateNonRSAPublicKeyPEM() string {
-	return `-----BEGIN PUBLIC KEY-----
-MHYwEAYHKoZIzj0CAQYFK4EEACIDYgAEdH2FQczFvIQaiBgAcnlKSnmFsEAKrmFz
-eB8yBZBsIr3jNkGeITIkDkAAQ0YyJGBB4jDqOG5r+3lKx7R8GhfTi/xt6n8LVZUS
-hwlH3TfglRAVJg1dQxxXmnQXsp45Im1t
------END PUBLIC KEY-----`
+func readNonRSAPublicKeyPEM() (string, error) {
+	pemBlock, err := os.ReadFile("../../../testdata/crypto/non_rsa_public_key.pem")
+	if err != nil {
+		return "", err
+	}
+	return string(pemBlock), nil
 }
