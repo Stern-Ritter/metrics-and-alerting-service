@@ -1,14 +1,14 @@
 package agent
 
 import (
+	"crypto/rsa"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
-	"go.uber.org/zap"
-
 	"gopkg.in/h2non/gentleman.v2"
 
 	config "github.com/Stern-Ritter/metrics-and-alerting-service/internal/config/agent"
+	logger "github.com/Stern-Ritter/metrics-and-alerting-service/internal/logger/agent"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/monitors"
 	cache "github.com/Stern-Ritter/metrics-and-alerting-service/internal/storage/agent"
@@ -26,12 +26,14 @@ type Agent struct {
 	metricsCh                      chan []metrics.Metrics
 	doneCh                         chan struct{}
 	sendMetricsBatchRetryIntervals *backoff.ExponentialBackOff
-	Logger                         *zap.Logger
+	rsaPublicKey                   *rsa.PublicKey
+	Logger                         *logger.AgentLogger
 }
 
 // NewAgent is constructor for creating a new Agent.
 func NewAgent(httpClient *gentleman.Client, cache cache.AgentCache, runtimeMonitor *monitors.RuntimeMonitor,
-	utilMonitor *monitors.UtilMonitor, random *utils.Random, config *config.AgentConfig, logger *zap.Logger) *Agent {
+	utilMonitor *monitors.UtilMonitor, random *utils.Random, config *config.AgentConfig, rsaPublicKey *rsa.PublicKey,
+	logger *logger.AgentLogger) *Agent {
 
 	sendMetricsBatchRetryIntervals := backoff.NewExponentialBackOff(
 		backoff.WithInitialInterval(1*time.Second),
@@ -53,5 +55,6 @@ func NewAgent(httpClient *gentleman.Client, cache cache.AgentCache, runtimeMonit
 		metricsCh:                      metricsCh,
 		doneCh:                         doneCh,
 		sendMetricsBatchRetryIntervals: sendMetricsBatchRetryIntervals,
+		rsaPublicKey:                   rsaPublicKey,
 		Logger:                         logger}
 }

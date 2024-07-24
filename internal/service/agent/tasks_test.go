@@ -48,7 +48,8 @@ func TestUpdateRuntimeMetrics(t *testing.T) {
 		utilMonitor := monitors.UtilMonitor{}
 		mockRandom := utils.NewRandom()
 		cfg := config.AgentConfig{}
-		agent := NewAgent(client, &mockAgentMemCache, &runtimeMonitor, &utilMonitor, &mockRandom, &cfg, aLogger)
+		agent := NewAgent(client, &mockAgentMemCache, &runtimeMonitor, &utilMonitor, &mockRandom, &cfg, nil,
+			aLogger)
 
 		mockAgentMemCache.On("UpdateRuntimeMonitorMetrics", &runtimeMonitor).Return(nil)
 		mockAgentMemCache.On("UpdateGaugeMetric", mock.Anything).Return(metrics.GaugeMetric{}, nil)

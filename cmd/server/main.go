@@ -22,7 +22,12 @@ func main() {
 	printBuildInfo()
 
 	config, err := app.GetConfig(config.ServerConfig{
-		LoggerLvl: "info",
+		URL:             "localhost:8080",
+		StoreInterval:   300,
+		FileStoragePath: "/tmp/metrics-db.json",
+		Restore:         true,
+		ShutdownTimeout: 5,
+		LoggerLvl:       "info",
 	})
 	if err != nil {
 		log.Fatalf("%+v", err)
@@ -35,7 +40,8 @@ func main() {
 
 	err = app.Run(&config, logger)
 	if err != nil {
-		logger.Fatal(err.Error(), zap.String("event", "start server"))
+		logger.Fatal("Failed to start server", zap.String("event", "start server"),
+			zap.Error(err))
 	}
 }
 

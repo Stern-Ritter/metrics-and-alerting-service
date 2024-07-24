@@ -2,39 +2,62 @@ package agent
 
 import (
 	"context"
+	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 
-	compress "github.com/Stern-Ritter/metrics-and-alerting-service/internal/compress/agent"
-	service "github.com/Stern-Ritter/metrics-and-alerting-service/internal/service/agent"
-)
+	"go.uber.org/zap"
+	"gopkg.in/h2non/gentleman.v2"
 
-// Count of agent setting up and managing tasks
-const (
-	taskCount = 3
+	compress "github.com/Stern-Ritter/metrics-and-alerting-service/internal/compress/agent"
+	config "github.com/Stern-Ritter/metrics-and-alerting-service/internal/config/agent"
+	logger "github.com/Stern-Ritter/metrics-and-alerting-service/internal/logger/agent"
+	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
+	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/monitors"
+	service "github.com/Stern-Ritter/metrics-and-alerting-service/internal/service/agent"
+	storage "github.com/Stern-Ritter/metrics-and-alerting-service/internal/storage/agent"
+	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/utils"
 )
 
 // Run starts the agent, setting up and managing tasks.
 // It returns an error if there are issues starting the agent.
-func Run(a *service.Agent) error {
-	a.HTTPClient.URL(a.Config.SendMetricsURL)
-	a.HTTPClient.UseHandler("before dial", compress.GzipMiddleware)
-	a.HTTPClient.UseHandler("before dial", a.SignMiddleware)
-
-	wg := sync.WaitGroup{}
-	wg.Add(taskCount)
-
-	ctx, cancel := context.WithCancel(context.Background())
+func Run(config *config.AgentConfig, logger *logger.AgentLogger) error {
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 	defer cancel()
 
-	a.StartSendMetricsWorkerPool()
+	httpClient := gentleman.New()
+	cache := storage.NewAgentMemCache(metrics.SupportedGaugeMetrics, metrics.SupportedCounterMetrics, logger)
+	runtimeMonitor := monitors.RuntimeMonitor{}
+	utilMonitor := monitors.UtilMonitor{}
+	random := utils.NewRandom()
 
-	service.SetInterval(ctx, &wg, a.UpdateRuntimeMetrics, time.Duration(a.Config.UpdateMetricsInterval)*time.Second)
-	service.SetInterval(ctx, &wg, a.UpdateUtilMetrics, time.Duration(a.Config.UpdateMetricsInterval)*time.Second)
-	service.SetInterval(ctx, &wg, a.SendMetrics, time.Duration(a.Config.SendMetricsInterval)*time.Second)
+	rsaPublicKey, err := service.GetRSAPublicKey(config.CryptoKeyPath)
+	if err != nil {
+		logger.Fatal(err.Error(), zap.String("event", "get rsa public key"))
+		return err
+	}
 
-	wg.Wait()
-	a.StopTasks()
+	agent := service.NewAgent(httpClient, &cache, &runtimeMonitor, &utilMonitor, &random, config, rsaPublicKey, logger)
+
+	agent.HTTPClient.URL(agent.Config.SendMetricsURL)
+	agent.HTTPClient.UseHandler("before dial", compress.GzipMiddleware)
+	agent.HTTPClient.UseHandler("before dial", agent.EncryptMiddleware)
+	agent.HTTPClient.UseHandler("before dial", agent.SignMiddleware)
+
+	workersWg := sync.WaitGroup{}
+
+	agent.StartSendMetricsWorkerPool(&workersWg)
+
+	tasksWg := sync.WaitGroup{}
+
+	service.SetInterval(ctx, &tasksWg, agent.UpdateRuntimeMetrics, time.Duration(agent.Config.UpdateMetricsInterval)*time.Second)
+	service.SetInterval(ctx, &tasksWg, agent.UpdateUtilMetrics, time.Duration(agent.Config.UpdateMetricsInterval)*time.Second)
+	service.SetInterval(ctx, &tasksWg, agent.SendMetrics, time.Duration(agent.Config.SendMetricsInterval)*time.Second)
+
+	tasksWg.Wait()
+	agent.StopSendMetricsWorkerPool()
+	workersWg.Wait()
 
 	return nil
 }

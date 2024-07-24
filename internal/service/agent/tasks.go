@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"runtime"
+	"sync"
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/shirou/gopsutil/v3/mem"
@@ -61,17 +62,11 @@ func (a *Agent) SendMetrics() {
 		metricsBatch = append(metricsBatch, metrics.CounterMetricToMetrics(counterMetric))
 	}
 
-	select {
-	case <-a.doneCh:
-		close(a.metricsCh)
-		a.Logger.Info("send metrics task stopped")
-		return
-	case a.metricsCh <- metricsBatch:
-	}
+	a.metricsCh <- metricsBatch
 }
 
 // StartSendMetricsWorkerPool starts a pool of workers to send metrics statistics.
-func (a *Agent) StartSendMetricsWorkerPool() {
+func (a *Agent) StartSendMetricsWorkerPool(wg *sync.WaitGroup) {
 	sendRateLimit := a.Config.RateLimit
 	if sendRateLimit <= 0 {
 		a.Logger.Error("Rate limit can't be less than or equal to zero",
@@ -80,14 +75,15 @@ func (a *Agent) StartSendMetricsWorkerPool() {
 	}
 
 	for w := 1; w <= sendRateLimit; w++ {
-		go a.sendMetricsWorker(w, a.metricsCh)
+		go a.sendMetricsWorker(w, a.metricsCh, wg)
+		wg.Add(1)
 	}
 
 	a.Logger.Debug("Worker pool started",
 		zap.String("event", "starting send metrics worker pool"))
 }
 
-func (a *Agent) sendMetricsWorker(id int, metricsCh <-chan []metrics.Metrics) {
+func (a *Agent) sendMetricsWorker(id int, metricsCh <-chan []metrics.Metrics, wg *sync.WaitGroup) {
 	a.Logger.Debug("Worker started", zap.Int("worker id", id),
 		zap.String("event", "starting send metrics worker"))
 
@@ -120,11 +116,15 @@ func (a *Agent) sendMetricsWorker(id int, metricsCh <-chan []metrics.Metrics) {
 		a.Logger.Debug("Success sent metrics update", zap.Int("worker id", id),
 			zap.String("event", "sending metrics update"))
 	}
+
 	a.Logger.Debug("Worker stopped", zap.Int("worker id", id),
 		zap.String("event", "stopping send metrics worker"))
+	wg.Done()
 }
 
-// StopTasks stops all Agent tasks
-func (a *Agent) StopTasks() {
-	close(a.doneCh)
+// StopSendMetricsWorkerPool stops send metrics workers
+func (a *Agent) StopSendMetricsWorkerPool() {
+	a.Logger.Debug("Worker pool stopped",
+		zap.String("event", "starting send metrics worker pool"))
+	close(a.metricsCh)
 }

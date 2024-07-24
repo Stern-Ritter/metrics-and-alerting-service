@@ -15,7 +15,6 @@ func TestSetInterval(t *testing.T) {
 	expectedCountAtLeast := 10
 
 	wg := sync.WaitGroup{}
-	wg.Add(1)
 	ctx, cancel := context.WithCancel(context.Background())
 	time.AfterFunc(time.Duration(duration)*time.Millisecond, cancel)
 

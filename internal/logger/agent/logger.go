@@ -4,8 +4,13 @@ import (
 	"go.uber.org/zap"
 )
 
+// AgentLogger wraps a zap.Logger.
+type AgentLogger struct {
+	*zap.Logger
+}
+
 // Initialize initializes a zap.Logger with the specified logging level.
-func Initialize(level string) (*zap.Logger, error) {
+func Initialize(level string) (*AgentLogger, error) {
 	lvl, err := zap.ParseAtomicLevel(level)
 	if err != nil {
 		return nil, err
@@ -19,5 +24,5 @@ func Initialize(level string) (*zap.Logger, error) {
 		return nil, err
 	}
 
-	return log, nil
+	return &AgentLogger{log}, nil
 }

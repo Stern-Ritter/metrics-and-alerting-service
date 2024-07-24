@@ -1,11 +1,16 @@
 package server
 
 import (
+	"context"
 	"database/sql"
 	"net/http"
-	"strings"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/go-chi/chi"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
 	compress "github.com/Stern-Ritter/metrics-and-alerting-service/internal/compress/server"
@@ -20,7 +25,12 @@ import (
 // Run starts the server, setting up the storage and HTTP handlers.
 // It returns an error if there are issues starting the server.
 func Run(config *config.ServerConfig, logger *logger.ServerLogger) error {
-	isDatabaseEnabled := len(strings.TrimSpace(config.DatabaseDSN)) != 0
+	idleConnsClosed := make(chan struct{})
+
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+
+	isDatabaseEnabled := len(config.DatabaseDSN) != 0
 
 	var store storage.Storage
 
@@ -49,9 +59,15 @@ func Run(config *config.ServerConfig, logger *logger.ServerLogger) error {
 		}
 	}
 
-	server := service.NewServer(mService, config, logger)
+	rsaPrivateKey, err := service.GetRSAPrivateKey(config.CryptoKeyPath)
+	if err != nil {
+		logger.Fatal(err.Error(), zap.String("event", "get rsa private key"))
+		return err
+	}
 
-	isFileStorageEnabled := len(strings.TrimSpace(config.FileStoragePath)) != 0
+	server := service.NewServer(mService, config, rsaPrivateKey, logger)
+
+	isFileStorageEnabled := len(config.FileStoragePath) != 0
 	if !isDatabaseEnabled && isFileStorageEnabled && config.Restore {
 		if err := server.MetricService.RestoreStateFromFile(config.FileStoragePath); err != nil {
 			server.Logger.Fatal(err.Error(), zap.String("event", "restore storage state from file"))
@@ -63,17 +79,49 @@ func Run(config *config.ServerConfig, logger *logger.ServerLogger) error {
 	}
 
 	r := addRoutes(server)
-	err := http.ListenAndServe(server.Config.URL, r)
-	if err != nil {
-		server.Logger.Fatal(err.Error(), zap.String("event", "start server"))
+
+	srv := &http.Server{
+		Addr:    server.Config.URL,
+		Handler: r,
 	}
-	return err
+
+	go func() {
+		<-signals
+		server.Logger.Info("Shutting down server", zap.String("event", "shutdown server"))
+
+		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(server.Config.ShutdownTimeout)*time.Second)
+		defer cancel()
+
+		if err := srv.Shutdown(ctx); err != nil {
+			server.Logger.Error("Failed to shutdown server", zap.String("event", "shutdown server"),
+				zap.Error(err))
+		}
+
+		err := server.MetricService.SaveStateToFile(server.Config.FileStoragePath)
+		if err != nil {
+			server.Logger.Error("Failed to save state to file", zap.String("event", "save state to file"),
+				zap.Error(err))
+		}
+
+		close(idleConnsClosed)
+	}()
+
+	server.Logger.Info("Starting server", zap.String("event", "start server"))
+	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		return err
+	}
+
+	<-idleConnsClosed
+	server.Logger.Info("Server shutdown complete", zap.String("event", "shutdown server"))
+
+	return nil
 }
 
 func addRoutes(s *service.Server) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(s.Logger.LoggerMiddleware)
 	r.Use(s.SignMiddleware)
+	r.Use(s.EncryptMiddleware)
 	r.Use(compress.GzipMiddleware)
 	r.Get("/", s.GetMetricsHandler)
 
