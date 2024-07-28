@@ -26,7 +26,6 @@ func main() {
 		StoreInterval:   300,
 		FileStoragePath: "/tmp/metrics-db.json",
 		Restore:         true,
-		TrustedSubnet:   "192.168.0.0/16",
 		ShutdownTimeout: 5,
 		LoggerLvl:       "info",
 	})
