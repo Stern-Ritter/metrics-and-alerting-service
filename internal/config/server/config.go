@@ -9,7 +9,8 @@ type ServerConfig struct {
 	DatabaseDSN     string `env:"DATABASE_DSN"`      // The database DSN
 	SecretKey       string `env:"KEY"`               // The secret key for authentication
 	CryptoKeyPath   string `env:"CRYPTO_KEY"`        // The path to secret private key for asymmetric encryption
-	ConfigFile      string `env:"CONFIG"`            //The path to json config file
+	ConfigFile      string `env:"CONFIG"`            // The path to json config file
+	TrustedSubnet   string `env:"TRUSTED_SUBNET"`    // The trusted subnet for agents
 	ShutdownTimeout int    // The server shutdown timeout in seconds
 	LoggerLvl       string // The logging level
 }

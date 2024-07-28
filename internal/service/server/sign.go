@@ -52,8 +52,8 @@ func (s *Server) SignMiddleware(next http.Handler) http.Handler {
 		sign := r.Header.Get(signKey)
 
 		hasSign := len(strings.TrimSpace(sign)) > 0
-		needCheckSign := len(strings.TrimSpace(s.Config.SecretKey)) > 0
-		needSignResponseBody := len(strings.TrimSpace(s.Config.SecretKey)) > 0
+		needCheckSign := len(s.Config.SecretKey) > 0
+		needSignResponseBody := len(s.Config.SecretKey) > 0
 
 		if hasSign && needCheckSign {
 			body, err := io.ReadAll(r.Body)

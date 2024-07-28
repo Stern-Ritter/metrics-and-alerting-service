@@ -21,6 +21,7 @@ type jsonConfig struct {
 	DatabaseDSN     string `json:"database_dsn,omitempty"`
 	SecretKey       string `json:"sign_key,omitempty"`
 	CryptoKeyPath   string `json:"crypto_key,omitempty"`
+	TrustedSubnet   string `json:"trusted_subnet,omitempty"`
 	ShutdownTimeout int    `json:"shutdown_timeout,omitempty"`
 	LoggerLvl       string `json:"logger_level,omitempty"`
 }
@@ -73,6 +74,7 @@ func parseFlags(cfg *config.ServerConfig) {
 	flag.StringVar(&cfg.SecretKey, "k", "", "secret authentication key")
 	flag.StringVar(&cfg.CryptoKeyPath, "crypto-key", "", "path to secret private key for asymmetric encryption")
 	flag.StringVar(&cfg.ConfigFile, "c", "", "path to json config file")
+	flag.StringVar(&cfg.TrustedSubnet, "t", "", "trusted subnet for agents")
 	flag.Parse()
 }
 
@@ -100,6 +102,8 @@ func mergeJSONConfig(cfg *config.ServerConfig, jsonCfg jsonConfig) {
 	cfg.DatabaseDSN = utils.Coalesce(cfg.DatabaseDSN, jsonCfg.DatabaseDSN)
 	cfg.SecretKey = utils.Coalesce(cfg.SecretKey, jsonCfg.SecretKey)
 	cfg.CryptoKeyPath = utils.Coalesce(cfg.CryptoKeyPath, jsonCfg.CryptoKeyPath)
+	cfg.TrustedSubnet = utils.Coalesce(cfg.TrustedSubnet, jsonCfg.TrustedSubnet)
+	cfg.ShutdownTimeout = utils.Coalesce(cfg.ShutdownTimeout, jsonCfg.ShutdownTimeout)
 	cfg.LoggerLvl = utils.Coalesce(cfg.LoggerLvl, jsonCfg.LoggerLvl)
 }
 
@@ -112,6 +116,8 @@ func mergeDefaultConfig(cfg *config.ServerConfig, defaultCfg config.ServerConfig
 	cfg.SecretKey = utils.Coalesce(cfg.SecretKey, defaultCfg.SecretKey)
 	cfg.CryptoKeyPath = utils.Coalesce(cfg.CryptoKeyPath, defaultCfg.CryptoKeyPath)
 	cfg.ConfigFile = utils.Coalesce(cfg.ConfigFile, defaultCfg.ConfigFile)
+	cfg.TrustedSubnet = utils.Coalesce(cfg.TrustedSubnet, defaultCfg.TrustedSubnet)
+	cfg.ShutdownTimeout = utils.Coalesce(cfg.ShutdownTimeout, defaultCfg.ShutdownTimeout)
 	cfg.LoggerLvl = utils.Coalesce(cfg.LoggerLvl, defaultCfg.LoggerLvl)
 }
 
@@ -122,6 +128,7 @@ func trimStringVarsSpaces(cfg *config.ServerConfig) {
 	cfg.SecretKey = strings.TrimSpace(cfg.SecretKey)
 	cfg.CryptoKeyPath = strings.TrimSpace(cfg.CryptoKeyPath)
 	cfg.ConfigFile = strings.TrimSpace(cfg.ConfigFile)
+	cfg.TrustedSubnet = strings.TrimSpace(cfg.TrustedSubnet)
 	cfg.LoggerLvl = strings.TrimSpace(cfg.LoggerLvl)
 }
 
