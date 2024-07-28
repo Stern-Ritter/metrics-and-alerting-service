@@ -95,8 +95,17 @@ func (a *Agent) sendMetricsWorker(id int, metricsCh <-chan []metrics.Metrics, wg
 			continue
 		}
 
+		ipAddr, err := getIPAddr()
+		if err != nil {
+			a.Logger.Error(err.Error(), zap.Int("worker id", id),
+				zap.String("event", "get ip address"))
+		}
+		headers := map[string]string{
+			"Content-Type": "application/json",
+			"X-Real-IP":    ipAddr,
+		}
 		sendMetricsBatch := func() error {
-			resp, err := sendPostRequest(a.HTTPClient, a.Config.SendMetricsEndPoint, "application/json", body)
+			resp, err := sendPostRequest(a.HTTPClient, a.Config.SendMetricsEndPoint, headers, body)
 			if err == nil && !resp.Ok {
 				return errors.NewUnsuccessRequestProcessing(fmt.Sprintf("unsuccess request sent on url: %s, status code: %d",
 					a.Config.SendMetricsEndPoint, resp.StatusCode), nil)

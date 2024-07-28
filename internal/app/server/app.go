@@ -65,7 +65,13 @@ func Run(config *config.ServerConfig, logger *logger.ServerLogger) error {
 		return err
 	}
 
-	server := service.NewServer(mService, config, rsaPrivateKey, logger)
+	trustedSubnet, err := service.GetTrustedSubnet(config.TrustedSubnet)
+	if err != nil {
+		logger.Fatal(err.Error(), zap.String("event", "get trusted subnet for agents"))
+		return err
+	}
+
+	server := service.NewServer(mService, config, rsaPrivateKey, trustedSubnet, logger)
 
 	isFileStorageEnabled := len(config.FileStoragePath) != 0
 	if !isDatabaseEnabled && isFileStorageEnabled && config.Restore {
@@ -120,6 +126,7 @@ func Run(config *config.ServerConfig, logger *logger.ServerLogger) error {
 func addRoutes(s *service.Server) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(s.Logger.LoggerMiddleware)
+	r.Use(s.SubnetMiddleware)
 	r.Use(s.SignMiddleware)
 	r.Use(s.EncryptMiddleware)
 	r.Use(compress.GzipMiddleware)
