@@ -22,4 +22,6 @@ type Storage interface {
 	Save(fName string) error
 	// Ping checks the connection to the storage.
 	Ping(ctx context.Context) error
+	// Close closes the connection to the storage.
+	Close() error
 }

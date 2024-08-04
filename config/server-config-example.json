@@ -4,8 +4,11 @@
   "store_file": "/tmp/metrics-db.json",
   "restore": true,
   "database_dsn": "",
+  "grpc": true,
   "sign_key": "secret",
   "crypto_key": "./certs/private.pem",
+  "tls_cert": "./certs/server-cert.pem",
+  "tls_key": "./certs/server-key.pem",
   "trusted_subnet": "192.168.0.0/16",
   "shutdown_timeout": 5,
   "logger_level": "info"

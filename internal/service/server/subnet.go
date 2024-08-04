@@ -1,9 +1,19 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/http"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
+)
+
+const (
+	ipKey = "X-Real-IP"
 )
 
 // GetTrustedSubnet parses a CIDR notated trusted subnet and returns a parsed subnet.
@@ -30,7 +40,7 @@ func (s *Server) SubnetMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		needCheckTrustedSubnet := s.trustedSubnet != nil
 		if needCheckTrustedSubnet {
-			ipStr := r.Header.Get("X-Real-IP")
+			ipStr := r.Header.Get(ipKey)
 			ip := net.ParseIP(ipStr)
 			if ip == nil {
 				http.Error(w, "Invalid ip address in X-Real-IP header", http.StatusForbidden)
@@ -45,4 +55,38 @@ func (s *Server) SubnetMiddleware(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+// SubnetInterceptor is a gRPC interceptor that verifies if the IP address of the incoming
+// request is within a trusted subnet.
+func (s *Server) SubnetInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo,
+	handler grpc.UnaryHandler) (interface{}, error) {
+	needCheckTrustedSubnet := s.trustedSubnet != nil
+	if needCheckTrustedSubnet {
+		var ipStr string
+
+		md, ok := metadata.FromIncomingContext(ctx)
+		if !ok {
+			return nil, status.Errorf(codes.InvalidArgument, "subnet interceptor: missing request metadata")
+		}
+
+		values := md.Get(ipKey)
+		if len(values) > 0 {
+			ipStr = values[0]
+		}
+		if len(ipStr) == 0 {
+			return nil, status.Errorf(codes.InvalidArgument, "subnet interceptor: missing ip address")
+		}
+
+		ip := net.ParseIP(ipStr)
+		if ip == nil {
+			return nil, status.Errorf(codes.InvalidArgument, "subnet interceptor: invalid ip address")
+		}
+
+		if !s.trustedSubnet.Contains(ip) {
+			return nil, status.Errorf(codes.Unauthenticated, "ip address isn`t in trusted subnet")
+		}
+	}
+
+	return handler(ctx, req)
 }

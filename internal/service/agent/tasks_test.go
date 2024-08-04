@@ -6,7 +6,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/h2non/gentleman.v2"
 
 	config "github.com/Stern-Ritter/metrics-and-alerting-service/internal/config/agent"
 	logger "github.com/Stern-Ritter/metrics-and-alerting-service/internal/logger/agent"
@@ -37,7 +36,6 @@ func (c *MockAgentMemCache) ResetMetricValue(metricType, metricName string) erro
 
 func TestUpdateRuntimeMetrics(t *testing.T) {
 	t.Run("should update monitor metrics and 'RandomValue' gauge metric once", func(t *testing.T) {
-		client := gentleman.New()
 		aLogger, err := logger.Initialize("info")
 		require.NoError(t, err, "Error init logger")
 		mockAgentMemCache := MockAgentMemCache{
@@ -48,8 +46,7 @@ func TestUpdateRuntimeMetrics(t *testing.T) {
 		utilMonitor := monitors.UtilMonitor{}
 		mockRandom := utils.NewRandom()
 		cfg := config.AgentConfig{}
-		agent := NewAgent(client, &mockAgentMemCache, &runtimeMonitor, &utilMonitor, &mockRandom, &cfg, nil,
-			aLogger)
+		agent := NewAgent(&mockAgentMemCache, &runtimeMonitor, &utilMonitor, &mockRandom, &cfg, nil, aLogger)
 
 		mockAgentMemCache.On("UpdateRuntimeMonitorMetrics", &runtimeMonitor).Return(nil)
 		mockAgentMemCache.On("UpdateGaugeMetric", mock.Anything).Return(metrics.GaugeMetric{}, nil)

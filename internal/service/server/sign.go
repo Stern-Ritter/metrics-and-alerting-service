@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
@@ -9,6 +10,12 @@ import (
 	"io"
 	"net/http"
 	"strings"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
 )
@@ -79,6 +86,48 @@ func (s *Server) SignMiddleware(next http.Handler) http.Handler {
 
 		next.ServeHTTP(ow, r)
 	})
+}
+
+// SignInterceptor is a gRPC interceptor that verifies the signature of incoming requests.
+func (s *Server) SignInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo,
+	handler grpc.UnaryHandler) (interface{}, error) {
+	needCheckSign := len(s.Config.SecretKey) > 0
+
+	if needCheckSign {
+		var sign string
+
+		md, ok := metadata.FromIncomingContext(ctx)
+		if !ok {
+			return nil, status.Errorf(codes.InvalidArgument, "sign interceptor: missing request metadata")
+		}
+
+		values := md.Get(signKey)
+		if len(values) > 0 {
+			sign = values[0]
+		}
+		if len(sign) == 0 {
+			return nil, status.Errorf(codes.InvalidArgument, "sign interceptor: missing request sign")
+		}
+
+		message, ok := req.(proto.Message)
+		if !ok {
+			return nil, status.Errorf(codes.Internal, "sign interceptor: request isn't a proto.Message")
+		}
+
+		body, err := proto.Marshal(message)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "sign interceptor: %s", err)
+		}
+
+		if len(body) > 0 {
+			err := checkSign(body, sign, s.Config.SecretKey)
+			if err != nil {
+				return nil, status.Errorf(codes.Unauthenticated, "sign interceptor: invalid sign")
+			}
+		}
+	}
+
+	return handler(ctx, req)
 }
 
 func checkSign(value []byte, sign string, secretKey string) error {

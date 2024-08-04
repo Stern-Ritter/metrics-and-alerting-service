@@ -19,8 +19,11 @@ type jsonConfig struct {
 	FileStoragePath string `json:"store_file,omitempty"`
 	Restore         bool   `json:"restore,omitempty"`
 	DatabaseDSN     string `json:"database_dsn,omitempty"`
+	GRPC            bool   `json:"grpc,omitempty"`
 	SecretKey       string `json:"sign_key,omitempty"`
 	CryptoKeyPath   string `json:"crypto_key,omitempty"`
+	TLSCertPath     string `json:"tls_cert,omitempty"`
+	TLSKeyPath      string `json:"tls_key,omitempty"`
 	TrustedSubnet   string `json:"trusted_subnet,omitempty"`
 	ShutdownTimeout int    `json:"shutdown_timeout,omitempty"`
 	LoggerLvl       string `json:"logger_level,omitempty"`
@@ -71,10 +74,13 @@ func parseFlags(cfg *config.ServerConfig) {
 	flag.StringVar(&cfg.FileStoragePath, "f", "", "metrics storage file path")
 	flag.BoolVar(&cfg.Restore, "r", false, "will metrics be restored from the file")
 	flag.StringVar(&cfg.DatabaseDSN, "d", "", "database dsn")
+	flag.BoolVar(&cfg.GRPC, "grpc", false, "grpc usage")
 	flag.StringVar(&cfg.SecretKey, "k", "", "secret authentication key")
 	flag.StringVar(&cfg.CryptoKeyPath, "crypto-key", "", "path to secret private key for asymmetric encryption")
-	flag.StringVar(&cfg.ConfigFile, "c", "", "path to json config file")
+	flag.StringVar(&cfg.TLSCertPath, "tls-cert", "", "path to tls certificate")
+	flag.StringVar(&cfg.TLSKeyPath, "tls-key", "", "path to tls key")
 	flag.StringVar(&cfg.TrustedSubnet, "t", "", "trusted subnet for agents")
+	flag.StringVar(&cfg.ConfigFile, "c", "", "path to json config file")
 	flag.Parse()
 }
 
@@ -100,8 +106,11 @@ func mergeJSONConfig(cfg *config.ServerConfig, jsonCfg jsonConfig) {
 	cfg.FileStoragePath = utils.Coalesce(cfg.FileStoragePath, jsonCfg.FileStoragePath)
 	cfg.Restore = utils.Coalesce(cfg.Restore, jsonCfg.Restore)
 	cfg.DatabaseDSN = utils.Coalesce(cfg.DatabaseDSN, jsonCfg.DatabaseDSN)
+	cfg.GRPC = utils.Coalesce(cfg.GRPC, jsonCfg.GRPC)
 	cfg.SecretKey = utils.Coalesce(cfg.SecretKey, jsonCfg.SecretKey)
 	cfg.CryptoKeyPath = utils.Coalesce(cfg.CryptoKeyPath, jsonCfg.CryptoKeyPath)
+	cfg.TLSCertPath = utils.Coalesce(cfg.TLSCertPath, jsonCfg.TLSCertPath)
+	cfg.TLSKeyPath = utils.Coalesce(cfg.TLSKeyPath, jsonCfg.TLSKeyPath)
 	cfg.TrustedSubnet = utils.Coalesce(cfg.TrustedSubnet, jsonCfg.TrustedSubnet)
 	cfg.ShutdownTimeout = utils.Coalesce(cfg.ShutdownTimeout, jsonCfg.ShutdownTimeout)
 	cfg.LoggerLvl = utils.Coalesce(cfg.LoggerLvl, jsonCfg.LoggerLvl)
@@ -113,10 +122,13 @@ func mergeDefaultConfig(cfg *config.ServerConfig, defaultCfg config.ServerConfig
 	cfg.FileStoragePath = utils.Coalesce(cfg.FileStoragePath, defaultCfg.FileStoragePath)
 	cfg.Restore = utils.Coalesce(cfg.Restore, defaultCfg.Restore)
 	cfg.DatabaseDSN = utils.Coalesce(cfg.DatabaseDSN, defaultCfg.DatabaseDSN)
+	cfg.GRPC = utils.Coalesce(cfg.GRPC, defaultCfg.GRPC)
 	cfg.SecretKey = utils.Coalesce(cfg.SecretKey, defaultCfg.SecretKey)
 	cfg.CryptoKeyPath = utils.Coalesce(cfg.CryptoKeyPath, defaultCfg.CryptoKeyPath)
-	cfg.ConfigFile = utils.Coalesce(cfg.ConfigFile, defaultCfg.ConfigFile)
+	cfg.TLSCertPath = utils.Coalesce(cfg.TLSCertPath, defaultCfg.TLSCertPath)
+	cfg.TLSKeyPath = utils.Coalesce(cfg.TLSKeyPath, defaultCfg.TLSKeyPath)
 	cfg.TrustedSubnet = utils.Coalesce(cfg.TrustedSubnet, defaultCfg.TrustedSubnet)
+	cfg.ConfigFile = utils.Coalesce(cfg.ConfigFile, defaultCfg.ConfigFile)
 	cfg.ShutdownTimeout = utils.Coalesce(cfg.ShutdownTimeout, defaultCfg.ShutdownTimeout)
 	cfg.LoggerLvl = utils.Coalesce(cfg.LoggerLvl, defaultCfg.LoggerLvl)
 }
@@ -127,8 +139,10 @@ func trimStringVarsSpaces(cfg *config.ServerConfig) {
 	cfg.DatabaseDSN = strings.TrimSpace(cfg.DatabaseDSN)
 	cfg.SecretKey = strings.TrimSpace(cfg.SecretKey)
 	cfg.CryptoKeyPath = strings.TrimSpace(cfg.CryptoKeyPath)
-	cfg.ConfigFile = strings.TrimSpace(cfg.ConfigFile)
+	cfg.TLSCertPath = strings.TrimSpace(cfg.TLSCertPath)
+	cfg.TLSKeyPath = strings.TrimSpace(cfg.TLSKeyPath)
 	cfg.TrustedSubnet = strings.TrimSpace(cfg.TrustedSubnet)
+	cfg.ConfigFile = strings.TrimSpace(cfg.ConfigFile)
 	cfg.LoggerLvl = strings.TrimSpace(cfg.LoggerLvl)
 }
 

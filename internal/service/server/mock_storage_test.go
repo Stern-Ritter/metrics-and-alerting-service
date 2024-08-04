@@ -13,9 +13,8 @@ import (
 	context "context"
 	reflect "reflect"
 
-	gomock "go.uber.org/mock/gomock"
-
 	metrics "github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
+	gomock "go.uber.org/mock/gomock"
 )
 
 // MockStorage is a mock of Storage interface.
@@ -39,6 +38,20 @@ func NewMockStorage(ctrl *gomock.Controller) *MockStorage {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockStorage) EXPECT() *MockStorageMockRecorder {
 	return m.recorder
+}
+
+// Close mocks base method.
+func (m *MockStorage) Close() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Close")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Close indicates an expected call of Close.
+func (mr *MockStorageMockRecorder) Close() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockStorage)(nil).Close))
 }
 
 // GetMetric mocks base method.
@@ -87,31 +100,31 @@ func (mr *MockStorageMockRecorder) Ping(ctx any) *gomock.Call {
 }
 
 // Restore mocks base method.
-func (m *MockStorage) Restore(fname string) error {
+func (m *MockStorage) Restore(fName string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Restore", fname)
+	ret := m.ctrl.Call(m, "Restore", fName)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Restore indicates an expected call of Restore.
-func (mr *MockStorageMockRecorder) Restore(fname any) *gomock.Call {
+func (mr *MockStorageMockRecorder) Restore(fName any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Restore", reflect.TypeOf((*MockStorage)(nil).Restore), fname)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Restore", reflect.TypeOf((*MockStorage)(nil).Restore), fName)
 }
 
 // Save mocks base method.
-func (m *MockStorage) Save(fname string) error {
+func (m *MockStorage) Save(fName string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Save", fname)
+	ret := m.ctrl.Call(m, "Save", fName)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Save indicates an expected call of Save.
-func (mr *MockStorageMockRecorder) Save(fname any) *gomock.Call {
+func (mr *MockStorageMockRecorder) Save(fName any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Save", reflect.TypeOf((*MockStorage)(nil).Save), fname)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Save", reflect.TypeOf((*MockStorage)(nil).Save), fName)
 }
 
 // UpdateMetric mocks base method.

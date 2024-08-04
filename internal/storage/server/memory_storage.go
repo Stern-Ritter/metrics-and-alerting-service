@@ -233,3 +233,8 @@ func (s *MemoryStorage) SetCounterMetrics(counters map[string]metrics.CounterMet
 	defer s.countersMu.Unlock()
 	s.counters = counters
 }
+
+// Close is a no-op for MemoryStorage.
+func (s *MemoryStorage) Close() error {
+	return nil
+}
