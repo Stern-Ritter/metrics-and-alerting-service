@@ -58,6 +58,11 @@ func (m *ExampleMockStorage) Ping(ctx context.Context) error {
 	return args.Error(0)
 }
 
+func (m *ExampleMockStorage) Close() error {
+	args := m.Called()
+	return args.Error(0)
+}
+
 // ExampleServer_UpdateMetricHandlerWithPathVars shows how to update a metric using request path variables.
 func ExampleServer_UpdateMetricHandlerWithPathVars() {
 	r := chi.NewRouter()

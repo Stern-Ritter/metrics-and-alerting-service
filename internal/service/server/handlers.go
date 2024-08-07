@@ -26,10 +26,15 @@ func (s *Server) UpdateMetricHandlerWithPathVars(res http.ResponseWriter, req *h
 	err := s.MetricService.UpdateMetricWithPathVars(req.Context(), mName, mType, mValue,
 		s.isSyncSaveStorageState(), s.Config.FileStoragePath)
 
-	var invalidMetricType er.InvalidMetricType
-	var invalidMetricValue er.InvalidMetricValue
-	if errors.As(err, &invalidMetricType) || errors.As(err, &invalidMetricValue) {
-		http.Error(res, err.Error(), http.StatusBadRequest)
+	if err != nil {
+		var invalidMetricType er.InvalidMetricType
+		var invalidMetricValue er.InvalidMetricValue
+		if errors.As(err, &invalidMetricType) || errors.As(err, &invalidMetricValue) {
+			http.Error(res, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		http.Error(res, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -73,10 +78,14 @@ func (s *Server) UpdateMetricsBatchHandlerWithBody(res http.ResponseWriter, req 
 	err = s.MetricService.UpdateMetricsBatchWithBody(req.Context(), metrics,
 		s.isSyncSaveStorageState(), s.Config.FileStoragePath)
 
-	var invalidMetricType er.InvalidMetricType
-	var invalidMetricValue er.InvalidMetricValue
-	if errors.As(err, &invalidMetricType) || errors.As(err, &invalidMetricValue) {
-		http.Error(res, err.Error(), http.StatusBadRequest)
+	if err != nil {
+		var invalidMetricType er.InvalidMetricType
+		var invalidMetricValue er.InvalidMetricValue
+		if errors.As(err, &invalidMetricType) || errors.As(err, &invalidMetricValue) {
+			http.Error(res, err.Error(), http.StatusBadRequest)
+			return
+		}
+		http.Error(res, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -90,10 +99,15 @@ func (s *Server) GetMetricHandlerWithPathVars(res http.ResponseWriter, req *http
 
 	value, err := s.MetricService.GetMetricValueByTypeAndName(req.Context(), metricType, metricName)
 
-	var invalidMetricType er.InvalidMetricType
-	var invalidMetricName er.InvalidMetricName
-	if errors.As(err, &invalidMetricType) || errors.As(err, &invalidMetricName) {
-		http.Error(res, err.Error(), http.StatusNotFound)
+	if err != nil {
+		var invalidMetricType er.InvalidMetricType
+		var invalidMetricName er.InvalidMetricName
+		if errors.As(err, &invalidMetricType) || errors.As(err, &invalidMetricName) {
+			http.Error(res, err.Error(), http.StatusNotFound)
+			return
+		}
+
+		http.Error(res, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -113,16 +127,21 @@ func (s *Server) GetMetricHandlerWithBody(res http.ResponseWriter, req *http.Req
 		return
 	}
 
-	metric, err = s.MetricService.GetMetricHandlerWithBody(req.Context(), metric)
+	savedMetric, err := s.MetricService.GetMetricValueWithBody(req.Context(), metric)
 
-	var invalidMetricType er.InvalidMetricType
-	var invalidMetricName er.InvalidMetricName
-	if errors.As(err, &invalidMetricType) || errors.As(err, &invalidMetricName) {
-		http.Error(res, err.Error(), http.StatusNotFound)
+	if err != nil {
+		var invalidMetricType er.InvalidMetricType
+		var invalidMetricName er.InvalidMetricName
+		if errors.As(err, &invalidMetricType) || errors.As(err, &invalidMetricName) {
+			http.Error(res, err.Error(), http.StatusNotFound)
+			return
+		}
+
+		http.Error(res, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	resp, err := json.Marshal(metric)
+	resp, err := json.Marshal(savedMetric)
 	if err != nil {
 		http.Error(res, "Error encoding response", http.StatusInternalServerError)
 	}

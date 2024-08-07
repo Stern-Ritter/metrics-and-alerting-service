@@ -22,4 +22,13 @@ jobs:
         with:
           go-version: '1.21'
           cache: false
-      - uses: golangci/golangci-lint-action@v3 
+      - uses: golangci/golangci-lint-action@v3
+
+  lint-protos:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: bufbuild/buf-setup-action@v1
+      - uses: bufbuild/buf-lint-action@v1
+        with:
+          input: proto

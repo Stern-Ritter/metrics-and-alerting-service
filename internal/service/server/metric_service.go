@@ -7,10 +7,6 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/pressly/goose/v3"
-
-	"github.com/Stern-Ritter/metrics-and-alerting-service/migrations"
-
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
 	"go.uber.org/zap"
@@ -181,8 +177,8 @@ func (s *MetricService) GetMetricValueByTypeAndName(ctx context.Context, mType s
 	}
 }
 
-// GetMetricHandlerWithBody returns a metric by metric type and name.
-func (s *MetricService) GetMetricHandlerWithBody(ctx context.Context, metric metrics.Metrics) (metrics.Metrics, error) {
+// GetMetricValueWithBody returns a metric by metric type and name.
+func (s *MetricService) GetMetricValueWithBody(ctx context.Context, metric metrics.Metrics) (metrics.Metrics, error) {
 	var m metrics.Metrics
 	var err error
 	get := func() error {
@@ -226,23 +222,6 @@ func (s *MetricService) GetMetrics(ctx context.Context) (map[string]metrics.Gaug
 	return gauges, counters, err
 }
 
-// RestoreStateFromFile restores the storage state from a file.
-func (s *MetricService) RestoreStateFromFile(filePath string) error {
-	restore := func() error {
-		err := s.storage.Restore(filePath)
-		var storageErr er.FileUnavailable
-		if errors.As(err, &storageErr) {
-			s.logger.Error(err.Error(), zap.String("event", "failed try restore storage state from file"))
-			return err
-		} else if err != nil {
-			return backoff.Permanent(err)
-		}
-		return nil
-	}
-
-	return backoff.Retry(restore, s.storageRetryInterval)
-}
-
 // SaveStateToFile saves the storage state to a file.
 func (s *MetricService) SaveStateToFile(filePath string) error {
 	save := func() error {
@@ -279,29 +258,6 @@ func (s *MetricService) SetSaveStateToFileInterval(filePath string, storeInterva
 			}
 		}
 	}()
-}
-
-// MigrateDatabase migrates the database using goose.
-func (s *MetricService) MigrateDatabase(databaseDsn string) error {
-	goose.SetBaseFS(migrations.Migrations)
-	if err := goose.SetDialect("postgres"); err != nil {
-		return fmt.Errorf("goose failed to set postgres dialect: %w", err)
-	}
-
-	db, err := goose.OpenDBWithDriver("pgx", databaseDsn)
-	if err != nil {
-		return fmt.Errorf("goose failed to open database connection: %w", err)
-	}
-
-	if err := goose.Up(db, "."); err != nil {
-		return fmt.Errorf("goose failed to migrate database: %w", err)
-	}
-
-	if err := db.Close(); err != nil {
-		return fmt.Errorf("goose failed to close database connection: %w", err)
-	}
-
-	return nil
 }
 
 // PingDatabase checks the connection to the database.

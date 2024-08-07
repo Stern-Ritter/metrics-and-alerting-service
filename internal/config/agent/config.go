@@ -8,8 +8,10 @@ type AgentConfig struct {
 	SendMetricsInterval   int    `env:"REPORT_INTERVAL"` // The interval for sending metrics statistics in seconds
 	MetricsBufferSize     int    // The buffer size for metrics channel
 	RateLimit             int    `env:"RATE_LIMIT"` // The size of sending metrics statistics worker pool
+	GRPC                  bool   `env:"GRPC"`       // The grpc usage flag
 	SecretKey             string `env:"KEY"`        // The secret key for authentication
 	CryptoKeyPath         string `env:"CRYPTO_KEY"` // The path to secret public key for asymmetric encryption
+	TLSCertPath           string `env:"TLS_CERT"`   // The path to TLS certificate
 	ConfigFile            string `env:"CONFIG"`     //The path to json config file
 	LoggerLvl             string // The logging level
 }

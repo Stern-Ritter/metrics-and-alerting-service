@@ -1,0 +1,11 @@
+version: v1
+
+plugins:
+  - name: go
+    out: proto/gen
+    opt: paths=source_relative
+  - name: go-grpc
+    out: proto/gen
+    opt: paths=source_relative
+  - plugin: buf.build/bufbuild/validate-go
+    out: proto/gen
