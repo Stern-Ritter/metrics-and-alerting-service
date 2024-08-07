@@ -22,7 +22,7 @@ import (
 	service "github.com/Stern-Ritter/metrics-and-alerting-service/internal/service/agent"
 	storage "github.com/Stern-Ritter/metrics-and-alerting-service/internal/storage/agent"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/utils"
-	pb "github.com/Stern-Ritter/metrics-and-alerting-service/proto/gen/metrics"
+	pb "github.com/Stern-Ritter/metrics-and-alerting-service/proto/gen/metrics/metricsapi/v1"
 )
 
 // Run starts the agent, setting up and managing tasks.
@@ -71,7 +71,7 @@ func Run(config *config.AgentConfig, logger *logger.AgentLogger) error {
 			logger.Fatal(err.Error(), zap.String("event", "get grpc connection"))
 		}
 		defer conn.Close()
-		client := pb.NewMetricsClient(conn)
+		client := pb.NewMetricsV1ServiceClient(conn)
 		agent.SetGRPCClient(client)
 
 		agent.StartSendMetricsWorkerPool(&workersWg, agent.SendMetricsWithGrpcWorker)

@@ -15,7 +15,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	config "github.com/Stern-Ritter/metrics-and-alerting-service/internal/config/server"
-	pb "github.com/Stern-Ritter/metrics-and-alerting-service/proto/gen/metrics"
+	pb "github.com/Stern-Ritter/metrics-and-alerting-service/proto/gen/metrics/metricsapi/v1"
 )
 
 func TestSignMiddleware(t *testing.T) {
@@ -141,7 +141,7 @@ func TestSignInterceptor(t *testing.T) {
 			name:      "Valid sign in request metadata",
 			secretKey: secretKey,
 			md:        metadata.Pairs(signKey, "a3fe670ac7a7e88578e5f20b5a1619c217da021335580c10c419cbf8472d9bd9"),
-			req: &pb.UpdateMetricRequest{Metric: &pb.MetricData{
+			req: &pb.MetricsV1ServiceUpdateMetricRequest{Metric: &pb.MetricData{
 				Name:        "Alloc",
 				Type:        "gauge",
 				MetricValue: &pb.MetricData_Value{Value: 22.22},
@@ -152,7 +152,7 @@ func TestSignInterceptor(t *testing.T) {
 			name:      "No request metadata",
 			secretKey: secretKey,
 			md:        nil,
-			req: &pb.UpdateMetricRequest{Metric: &pb.MetricData{
+			req: &pb.MetricsV1ServiceUpdateMetricRequest{Metric: &pb.MetricData{
 				Name:        "Alloc",
 				Type:        "gauge",
 				MetricValue: &pb.MetricData_Value{Value: 22.22},
@@ -163,7 +163,7 @@ func TestSignInterceptor(t *testing.T) {
 			name:      "No sign in request metadata",
 			secretKey: secretKey,
 			md:        metadata.Pairs(),
-			req: &pb.UpdateMetricRequest{Metric: &pb.MetricData{
+			req: &pb.MetricsV1ServiceUpdateMetricRequest{Metric: &pb.MetricData{
 				Name:        "Alloc",
 				Type:        "gauge",
 				MetricValue: &pb.MetricData_Value{Value: 22.22},
@@ -181,7 +181,7 @@ func TestSignInterceptor(t *testing.T) {
 			name:      "Invalid sign in request metadata",
 			secretKey: secretKey,
 			md:        metadata.Pairs(signKey, "invalid"),
-			req: &pb.UpdateMetricRequest{Metric: &pb.MetricData{
+			req: &pb.MetricsV1ServiceUpdateMetricRequest{Metric: &pb.MetricData{
 				Name:        "Alloc",
 				Type:        "gauge",
 				MetricValue: &pb.MetricData_Value{Value: 22.22},
@@ -192,7 +192,7 @@ func TestSignInterceptor(t *testing.T) {
 			name:      "No secret key in server config",
 			secretKey: "",
 			md:        nil,
-			req: &pb.UpdateMetricRequest{Metric: &pb.MetricData{
+			req: &pb.MetricsV1ServiceUpdateMetricRequest{Metric: &pb.MetricData{
 				Name:        "Alloc",
 				Type:        "gauge",
 				MetricValue: &pb.MetricData_Value{Value: 22.22},

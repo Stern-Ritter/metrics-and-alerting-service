@@ -16,13 +16,13 @@ func sendPostRequest(client *gentleman.Client, endpoint string, headers map[stri
 	req := client.Request()
 	req.Method("POST")
 	req.Path(endpoint)
-	setHeaders(req, headers)
+	injectHeaders(req, headers)
 	req.Use(body.JSON(data))
 
 	return req.Send()
 }
 
-func setHeaders(req *gentleman.Request, headers map[string]string) {
+func injectHeaders(req *gentleman.Request, headers map[string]string) {
 	for name, value := range headers {
 		req.SetHeader(name, value)
 	}

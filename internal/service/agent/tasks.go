@@ -16,7 +16,7 @@ import (
 
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
-	pb "github.com/Stern-Ritter/metrics-and-alerting-service/proto/gen/metrics"
+	pb "github.com/Stern-Ritter/metrics-and-alerting-service/proto/gen/metrics/metricsapi/v1"
 )
 
 const (
@@ -159,7 +159,7 @@ func (a *Agent) SendMetricsWithGrpcWorker(id int, metricsCh <-chan []metrics.Met
 		ctx := metadata.NewOutgoingContext(context.Background(), md)
 
 		sendMetricData := func() error {
-			updateMetricsBatchRequest := &pb.UpdateMetricsBatchRequest{
+			updateMetricsBatchRequest := &pb.MetricsV1ServiceUpdateMetricsBatchRequest{
 				Metrics: metricsData,
 			}
 			_, err := a.GRPCClient.UpdateMetricsBatch(ctx, updateMetricsBatchRequest)

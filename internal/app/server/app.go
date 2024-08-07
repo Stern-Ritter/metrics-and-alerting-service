@@ -27,7 +27,7 @@ import (
 	service "github.com/Stern-Ritter/metrics-and-alerting-service/internal/service/server"
 	storage "github.com/Stern-Ritter/metrics-and-alerting-service/internal/storage/server"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/migrations"
-	pb "github.com/Stern-Ritter/metrics-and-alerting-service/proto/gen/metrics"
+	pb "github.com/Stern-Ritter/metrics-and-alerting-service/proto/gen/metrics/metricsapi/v1"
 )
 
 // Run starts the server, setting up the storage and HTTP handlers.
@@ -169,7 +169,7 @@ func runGrpcServer(server *service.Server, signals chan os.Signal, idleConnsClos
 	}
 
 	srv := grpc.NewServer(opts...)
-	pb.RegisterMetricsServer(srv, server)
+	pb.RegisterMetricsV1ServiceServer(srv, server)
 
 	go func() {
 		<-signals

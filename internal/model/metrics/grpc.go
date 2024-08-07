@@ -1,7 +1,7 @@
 package metrics
 
 import (
-	pb "github.com/Stern-Ritter/metrics-and-alerting-service/proto/gen/metrics"
+	pb "github.com/Stern-Ritter/metrics-and-alerting-service/proto/gen/metrics/metricsapi/v1"
 )
 
 // MetricDataToMetrics converts a pb.MetricData to a Metrics structure.

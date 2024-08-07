@@ -13,13 +13,13 @@ import (
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/monitors"
 	cache "github.com/Stern-Ritter/metrics-and-alerting-service/internal/storage/agent"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/utils"
-	pb "github.com/Stern-Ritter/metrics-and-alerting-service/proto/gen/metrics"
+	pb "github.com/Stern-Ritter/metrics-and-alerting-service/proto/gen/metrics/metricsapi/v1"
 )
 
 // Agent is monitoring agent that collects and sends metrics statistics to the server.
 type Agent struct {
 	HTTPClient                     *gentleman.Client
-	GRPCClient                     pb.MetricsClient
+	GRPCClient                     pb.MetricsV1ServiceClient
 	Cache                          cache.AgentCache
 	RuntimeMonitor                 *monitors.RuntimeMonitor
 	UtilMonitor                    *monitors.UtilMonitor
@@ -66,6 +66,6 @@ func (a *Agent) SetHTTPClient(client *gentleman.Client) {
 }
 
 // SetGRPCClient sets the gRPC client for the Agent.
-func (a *Agent) SetGRPCClient(grpcClient pb.MetricsClient) {
+func (a *Agent) SetGRPCClient(grpcClient pb.MetricsV1ServiceClient) {
 	a.GRPCClient = grpcClient
 }

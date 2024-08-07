@@ -16,7 +16,7 @@ import (
 	gcontext "gopkg.in/h2non/gentleman.v2/context"
 
 	config "github.com/Stern-Ritter/metrics-and-alerting-service/internal/config/agent"
-	pb "github.com/Stern-Ritter/metrics-and-alerting-service/proto/gen/metrics"
+	pb "github.com/Stern-Ritter/metrics-and-alerting-service/proto/gen/metrics/metricsapi/v1"
 )
 
 type SignMockHandler struct {
@@ -103,7 +103,7 @@ func TestSignInterceptor(t *testing.T) {
 		{
 			name:      "Valid request",
 			secretKey: secretKey,
-			req: &pb.UpdateMetricRequest{Metric: &pb.MetricData{
+			req: &pb.MetricsV1ServiceUpdateMetricRequest{Metric: &pb.MetricData{
 				Name:        "Alloc",
 				Type:        "gauge",
 				MetricValue: &pb.MetricData_Value{Value: 22.22},
@@ -123,7 +123,7 @@ func TestSignInterceptor(t *testing.T) {
 		{
 			name:      "No secret key in agent config",
 			secretKey: "",
-			req: &pb.UpdateMetricRequest{Metric: &pb.MetricData{
+			req: &pb.MetricsV1ServiceUpdateMetricRequest{Metric: &pb.MetricData{
 				Name:        "Alloc",
 				Type:        "gauge",
 				MetricValue: &pb.MetricData_Value{Value: 22.22},

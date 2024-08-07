@@ -65,10 +65,7 @@ openssl-tls-certs-gen:
 	openssl x509 -req -in $(CERTS_DIR)/client-req.pem -CA $(CERTS_DIR)/ca-cert.pem -CAkey $(CERTS_DIR)/ca-key.pem -CAcreateserial -out $(CERTS_DIR)/client-cert.pem -days 60
 
 proto-gen:
-	protoc -I=proto --go_out=./proto/gen --go_opt=paths=source_relative \
-    		--go-grpc_out=./proto/gen --go-grpc_opt=paths=source_relative \
-    		proto/metrics/*.proto
-
+	buf generate
 
 build-server:
 	cd $(SERVER_DIR) && go build -buildvcs=false -ldflags "-X main.buildVersion=v$(SERVER_VERSION) -X main.buildDate=$(BUILD_DATE) -X main.buildCommit=$(BUILD_COMMIT)" -o $(SERVER_OUTPUT) && cd ../..

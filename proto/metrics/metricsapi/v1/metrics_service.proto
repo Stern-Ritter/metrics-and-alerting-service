@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package metrics.metricsapi.v1;
+
+import "metrics/metricsapi/v1/metrics.proto";
+
+option go_package = "metrics/metricsapi/v1";
+
+service MetricsV1Service {
+  rpc UpdateMetric(MetricsV1ServiceUpdateMetricRequest) returns (MetricsV1ServiceUpdateMetricResponse);
+  rpc UpdateMetricsBatch(MetricsV1ServiceUpdateMetricsBatchRequest) returns (MetricsV1ServiceUpdateMetricsBatchResponse);
+  rpc GetMetric(MetricsV1ServiceGetMetricRequest) returns (MetricsV1ServiceGetMetricResponse);
+  rpc GetMetrics(MetricsV1ServiceGetMetricsRequest) returns (MetricsV1ServiceGetMetricsResponse);
+  rpc Ping(MetricsV1ServicePingRequest) returns (MetricsV1ServicePingResponse);
+}

@@ -6,7 +6,7 @@ import (
 
 	config "github.com/Stern-Ritter/metrics-and-alerting-service/internal/config/server"
 	logger "github.com/Stern-Ritter/metrics-and-alerting-service/internal/logger/server"
-	pb "github.com/Stern-Ritter/metrics-and-alerting-service/proto/gen/metrics"
+	pb "github.com/Stern-Ritter/metrics-and-alerting-service/proto/gen/metrics/metricsapi/v1"
 )
 
 // Server is the server for handling requests to work with metrics representation.
@@ -16,7 +16,7 @@ type Server struct {
 	rsaPrivateKey *rsa.PrivateKey      // rsaPrivateKey is secret private key for asymmetric encryption
 	trustedSubnet *net.IPNet           // trustedSubnet is trusted subnet for agents
 	Logger        *logger.ServerLogger // Logger is used for logging server events
-	pb.UnimplementedMetricsServer
+	pb.UnimplementedMetricsV1ServiceServer
 }
 
 // NewServer is constructor for creating a new Server instance.

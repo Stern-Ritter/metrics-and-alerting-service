@@ -30,7 +30,7 @@ import (
 	cache "github.com/Stern-Ritter/metrics-and-alerting-service/internal/storage/agent"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/utils"
 	mocks "github.com/Stern-Ritter/metrics-and-alerting-service/mocks"
-	pb "github.com/Stern-Ritter/metrics-and-alerting-service/proto/gen/metrics"
+	pb "github.com/Stern-Ritter/metrics-and-alerting-service/proto/gen/metrics/metricsapi/v1"
 )
 
 type MockAgentMemCache struct {
@@ -282,7 +282,7 @@ func TestSendMetricsWithGrpcWorker_OkResponse(t *testing.T) {
 	observerLogger := zap.New(core)
 	aLogger := &logger.AgentLogger{Logger: observerLogger}
 
-	mockGRPCClient := mocks.NewMockMetricsClient(ctrl)
+	mockGRPCClient := mocks.NewMockMetricsV1ServiceClient(ctrl)
 
 	metricValue := 22.22
 	metricsData := &pb.MetricData{
@@ -290,7 +290,7 @@ func TestSendMetricsWithGrpcWorker_OkResponse(t *testing.T) {
 		Type:        "gauge",
 		MetricValue: &pb.MetricData_Value{Value: metricValue},
 	}
-	updateMetricsBatchRequest := &pb.UpdateMetricsBatchRequest{
+	updateMetricsBatchRequest := &pb.MetricsV1ServiceUpdateMetricsBatchRequest{
 		Metrics: []*pb.MetricData{metricsData},
 	}
 
@@ -353,7 +353,7 @@ func TestSendMetricsWithGrpcWorker_Error(t *testing.T) {
 	observerLogger := zap.New(core)
 	aLogger := &logger.AgentLogger{Logger: observerLogger}
 
-	mockGRPCClient := mocks.NewMockMetricsClient(ctrl)
+	mockGRPCClient := mocks.NewMockMetricsV1ServiceClient(ctrl)
 
 	metricValue := 22.22
 	metricsData := &pb.MetricData{
@@ -361,7 +361,7 @@ func TestSendMetricsWithGrpcWorker_Error(t *testing.T) {
 		Type:        "gauge",
 		MetricValue: &pb.MetricData_Value{Value: metricValue},
 	}
-	updateMetricsBatchRequest := &pb.UpdateMetricsBatchRequest{
+	updateMetricsBatchRequest := &pb.MetricsV1ServiceUpdateMetricsBatchRequest{
 		Metrics: []*pb.MetricData{metricsData},
 	}
 

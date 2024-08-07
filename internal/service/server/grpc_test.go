@@ -10,13 +10,12 @@ import (
 	"go.uber.org/mock/gomock"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/config/server"
 	er "github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
 	logger "github.com/Stern-Ritter/metrics-and-alerting-service/internal/logger/server"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
-	pb "github.com/Stern-Ritter/metrics-and-alerting-service/proto/gen/metrics"
+	pb "github.com/Stern-Ritter/metrics-and-alerting-service/proto/gen/metrics/metricsapi/v1"
 )
 
 var (
@@ -38,8 +37,8 @@ func TestUpdateMetric(t *testing.T) {
 
 	testCases := []struct {
 		name                   string
-		req                    *pb.UpdateMetricRequest
-		resp                   *pb.UpdateMetricResponse
+		req                    *pb.MetricsV1ServiceUpdateMetricRequest
+		resp                   *pb.MetricsV1ServiceUpdateMetricResponse
 		useStorageUpdateMetric bool
 		storageUpdateMetricErr error
 		useStorageGetMetric    bool
@@ -49,7 +48,7 @@ func TestUpdateMetric(t *testing.T) {
 	}{
 		{
 			name: "should return error when update metric request is invalid",
-			req: &pb.UpdateMetricRequest{
+			req: &pb.MetricsV1ServiceUpdateMetricRequest{
 				Metric: &pb.MetricData{
 					Name:        gaugeMetricName,
 					Type:        "unknown",
@@ -63,14 +62,14 @@ func TestUpdateMetric(t *testing.T) {
 		},
 		{
 			name: "should success update metric when update metric request is valid",
-			req: &pb.UpdateMetricRequest{
+			req: &pb.MetricsV1ServiceUpdateMetricRequest{
 				Metric: &pb.MetricData{
 					Name:        gaugeMetricName,
 					Type:        gaugeMetricType,
 					MetricValue: &pb.MetricData_Value{Value: gaugeMetricValue},
 				},
 			},
-			resp: &pb.UpdateMetricResponse{
+			resp: &pb.MetricsV1ServiceUpdateMetricResponse{
 				Metric: &pb.MetricData{
 					Name:        gaugeMetricName,
 					Type:        gaugeMetricType,
@@ -129,14 +128,14 @@ func TestUpdateMetricsBatch(t *testing.T) {
 
 	testCases := []struct {
 		name                    string
-		req                     *pb.UpdateMetricsBatchRequest
+		req                     *pb.MetricsV1ServiceUpdateMetricsBatchRequest
 		useStorageUpdateMetrics bool
 		storageUpdateMetricsErr error
 		expectedErr             error
 	}{
 		{
 			name: "should return error when update metrics request is invalid",
-			req: &pb.UpdateMetricsBatchRequest{
+			req: &pb.MetricsV1ServiceUpdateMetricsBatchRequest{
 				Metrics: []*pb.MetricData{
 					{
 						Name:        gaugeMetricName,
@@ -151,7 +150,7 @@ func TestUpdateMetricsBatch(t *testing.T) {
 		},
 		{
 			name: "should success update metrics when update metrics request is valid",
-			req: &pb.UpdateMetricsBatchRequest{
+			req: &pb.MetricsV1ServiceUpdateMetricsBatchRequest{
 				Metrics: []*pb.MetricData{
 					{
 						Name:        gaugeMetricName,
@@ -198,15 +197,15 @@ func TestGetMetric(t *testing.T) {
 
 	testCases := []struct {
 		name                string
-		req                 *pb.GetMetricRequest
-		resp                *pb.GetMetricResponse
+		req                 *pb.MetricsV1ServiceGetMetricRequest
+		resp                *pb.MetricsV1ServiceGetMetricResponse
 		storageGetMetric    metrics.Metrics
 		storageGetMetricErr error
 		expectedErr         error
 	}{
 		{
 			name: "should return error when get metric request is invalid",
-			req: &pb.GetMetricRequest{
+			req: &pb.MetricsV1ServiceGetMetricRequest{
 				Metric: &pb.MetricInfo{
 					Name: gaugeMetricName,
 					Type: "unknown",
@@ -218,13 +217,13 @@ func TestGetMetric(t *testing.T) {
 		},
 		{
 			name: "should return metric data when get metric request is valid",
-			req: &pb.GetMetricRequest{
+			req: &pb.MetricsV1ServiceGetMetricRequest{
 				Metric: &pb.MetricInfo{
 					Name: gaugeMetricName,
 					Type: gaugeMetricType,
 				},
 			},
-			resp: &pb.GetMetricResponse{
+			resp: &pb.MetricsV1ServiceGetMetricResponse{
 				Metric: &pb.MetricData{
 					Name:        gaugeMetricName,
 					Type:        gaugeMetricType,
@@ -272,7 +271,7 @@ func TestGetMetrics(t *testing.T) {
 
 	testCases := []struct {
 		name                     string
-		resp                     *pb.GetMetricsResponse
+		resp                     *pb.MetricsV1ServiceGetMetricsResponse
 		storageGetGaugeMetrics   map[string]metrics.GaugeMetric
 		storageGetCounterMetrics map[string]metrics.CounterMetric
 		storageGetMetricsErr     error
@@ -286,7 +285,7 @@ func TestGetMetrics(t *testing.T) {
 		},
 		{
 			name: "should return metrics list when storage doesn`t return error",
-			resp: &pb.GetMetricsResponse{
+			resp: &pb.MetricsV1ServiceGetMetricsResponse{
 				Metrics: "Alloc",
 			},
 			storageGetGaugeMetrics: map[string]metrics.GaugeMetric{
@@ -311,7 +310,7 @@ func TestGetMetrics(t *testing.T) {
 				GetMetrics(gomock.Any()).
 				Return(tt.storageGetGaugeMetrics, tt.storageGetCounterMetrics, tt.storageGetMetricsErr)
 
-			resp, err := s.GetMetrics(context.Background(), &emptypb.Empty{})
+			resp, err := s.GetMetrics(context.Background(), &pb.MetricsV1ServiceGetMetricsRequest{})
 			if tt.expectedErr != nil {
 				assert.ErrorIs(t, tt.expectedErr, err, "should return error: %s, got: %s", tt.expectedErr, err)
 			} else {
@@ -357,7 +356,7 @@ func TestPing(t *testing.T) {
 				Ping(gomock.Any()).
 				Return(tt.storagePingErr)
 
-			_, err := s.Ping(context.Background(), &emptypb.Empty{})
+			_, err := s.Ping(context.Background(), &pb.MetricsV1ServicePingRequest{})
 			if tt.expectedErr != nil {
 				assert.ErrorIs(t, tt.expectedErr, err, "should return error: %s, got: %s", tt.expectedErr, err)
 			} else {
