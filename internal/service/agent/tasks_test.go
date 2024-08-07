@@ -20,7 +20,6 @@ import (
 	"go.uber.org/zap/zaptest/observer"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/emptypb"
 	"gopkg.in/h2non/gentleman.v2"
 
 	config "github.com/Stern-Ritter/metrics-and-alerting-service/internal/config/agent"
@@ -296,7 +295,7 @@ func TestSendMetricsWithGrpcWorker_OkResponse(t *testing.T) {
 
 	mockGRPCClient.EXPECT().
 		UpdateMetricsBatch(gomock.Any(), updateMetricsBatchRequest).
-		Return(&emptypb.Empty{}, nil).
+		Return(&pb.MetricsV1ServiceUpdateMetricsBatchResponse{}, nil).
 		Times(1)
 
 	cfg := &config.AgentConfig{}

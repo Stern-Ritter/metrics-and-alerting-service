@@ -12,7 +12,6 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/config/server"
-	er "github.com/Stern-Ritter/metrics-and-alerting-service/internal/errors"
 	logger "github.com/Stern-Ritter/metrics-and-alerting-service/internal/logger/server"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/metrics"
 	pb "github.com/Stern-Ritter/metrics-and-alerting-service/proto/gen/metrics/metricsapi/v1"
@@ -55,10 +54,8 @@ func TestUpdateMetric(t *testing.T) {
 					MetricValue: &pb.MetricData_Value{Value: gaugeMetricValue},
 				},
 			},
-			resp:                   nil,
-			useStorageUpdateMetric: true,
-			storageUpdateMetricErr: er.NewInvalidMetricType("Invalid metric type: unknown", nil),
-			expectedErr:            status.Error(codes.InvalidArgument, "Invalid metric type: unknown"),
+			resp:        nil,
+			expectedErr: status.Error(codes.InvalidArgument, "invalid MetricsV1ServiceUpdateMetricRequest.Metric: embedded message failed validation | caused by: invalid MetricData.Type: value must be in list [gauge counter]"),
 		},
 		{
 			name: "should success update metric when update metric request is valid",
@@ -144,9 +141,7 @@ func TestUpdateMetricsBatch(t *testing.T) {
 					},
 				},
 			},
-			useStorageUpdateMetrics: true,
-			storageUpdateMetricsErr: er.NewInvalidMetricType("Invalid metric type: unknown", nil),
-			expectedErr:             status.Error(codes.InvalidArgument, "Invalid metric type: unknown"),
+			expectedErr: status.Error(codes.InvalidArgument, "invalid MetricsV1ServiceUpdateMetricsBatchRequest.Metrics[0]: embedded message failed validation | caused by: invalid MetricData.Type: value must be in list [gauge counter]"),
 		},
 		{
 			name: "should success update metrics when update metrics request is valid",
@@ -199,6 +194,7 @@ func TestGetMetric(t *testing.T) {
 		name                string
 		req                 *pb.MetricsV1ServiceGetMetricRequest
 		resp                *pb.MetricsV1ServiceGetMetricResponse
+		useStorageGetMetric bool
 		storageGetMetric    metrics.Metrics
 		storageGetMetricErr error
 		expectedErr         error
@@ -211,9 +207,8 @@ func TestGetMetric(t *testing.T) {
 					Type: "unknown",
 				},
 			},
-			resp:                nil,
-			storageGetMetricErr: er.NewInvalidMetricType("Invalid metric type: unknown", nil),
-			expectedErr:         status.Error(codes.NotFound, "Invalid metric type: unknown"),
+			resp:        nil,
+			expectedErr: status.Error(codes.InvalidArgument, "invalid MetricsV1ServiceGetMetricRequest.Metric: embedded message failed validation | caused by: invalid MetricInfo.Type: value must be in list [gauge counter]"),
 		},
 		{
 			name: "should return metric data when get metric request is valid",
@@ -230,6 +225,7 @@ func TestGetMetric(t *testing.T) {
 					MetricValue: &pb.MetricData_Value{Value: gaugeMetricValue},
 				},
 			},
+			useStorageGetMetric: true,
 			storageGetMetric: metrics.Metrics{
 				ID:    gaugeMetricName,
 				MType: gaugeMetricType,
@@ -242,10 +238,12 @@ func TestGetMetric(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			mockStorage.
-				EXPECT().
-				GetMetric(gomock.Any(), gomock.Any()).
-				Return(tt.storageGetMetric, tt.storageGetMetricErr)
+			if tt.useStorageGetMetric {
+				mockStorage.
+					EXPECT().
+					GetMetric(gomock.Any(), gomock.Any()).
+					Return(tt.storageGetMetric, tt.storageGetMetricErr)
+			}
 
 			resp, err := s.GetMetric(context.Background(), tt.req)
 			if tt.expectedErr != nil {
