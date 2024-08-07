@@ -30,4 +30,4 @@ jobs:
 
       - name: Run statictest
         run: |
-          go list ./... | grep -v './proto/' | xargs -n 1 go vet -vettool=$(which statictest) -buildvcs=false
+          go vet -vettool=$(which statictest) ./...
