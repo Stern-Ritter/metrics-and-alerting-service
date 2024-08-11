@@ -1,0 +1,14 @@
+version: v2
+modules:
+  - name: buf.build/metrics/metricsapi
+    path: proto
+
+deps:
+  - buf.build/envoyproxy/protoc-gen-validate
+
+lint:
+  use:
+    - DEFAULT
+breaking:
+  use:
+    - PACKAGE

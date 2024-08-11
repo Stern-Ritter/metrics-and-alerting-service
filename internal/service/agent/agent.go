@@ -13,11 +13,13 @@ import (
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/model/monitors"
 	cache "github.com/Stern-Ritter/metrics-and-alerting-service/internal/storage/agent"
 	"github.com/Stern-Ritter/metrics-and-alerting-service/internal/utils"
+	pb "github.com/Stern-Ritter/metrics-and-alerting-service/proto/gen/metrics/metricsapi/v1"
 )
 
 // Agent is monitoring agent that collects and sends metrics statistics to the server.
 type Agent struct {
 	HTTPClient                     *gentleman.Client
+	GRPCClient                     pb.MetricsV1ServiceClient
 	Cache                          cache.AgentCache
 	RuntimeMonitor                 *monitors.RuntimeMonitor
 	UtilMonitor                    *monitors.UtilMonitor
@@ -31,7 +33,7 @@ type Agent struct {
 }
 
 // NewAgent is constructor for creating a new Agent.
-func NewAgent(httpClient *gentleman.Client, cache cache.AgentCache, runtimeMonitor *monitors.RuntimeMonitor,
+func NewAgent(cache cache.AgentCache, runtimeMonitor *monitors.RuntimeMonitor,
 	utilMonitor *monitors.UtilMonitor, random *utils.Random, config *config.AgentConfig, rsaPublicKey *rsa.PublicKey,
 	logger *logger.AgentLogger) *Agent {
 
@@ -46,7 +48,6 @@ func NewAgent(httpClient *gentleman.Client, cache cache.AgentCache, runtimeMonit
 	doneCh := make(chan struct{})
 
 	return &Agent{
-		HTTPClient:                     httpClient,
 		Cache:                          cache,
 		RuntimeMonitor:                 runtimeMonitor,
 		UtilMonitor:                    utilMonitor,
@@ -57,4 +58,14 @@ func NewAgent(httpClient *gentleman.Client, cache cache.AgentCache, runtimeMonit
 		sendMetricsBatchRetryIntervals: sendMetricsBatchRetryIntervals,
 		rsaPublicKey:                   rsaPublicKey,
 		Logger:                         logger}
+}
+
+// SetHTTPClient sets the HTTP client for the Agent.
+func (a *Agent) SetHTTPClient(client *gentleman.Client) {
+	a.HTTPClient = client
+}
+
+// SetGRPCClient sets the gRPC client for the Agent.
+func (a *Agent) SetGRPCClient(grpcClient pb.MetricsV1ServiceClient) {
+	a.GRPCClient = grpcClient
 }

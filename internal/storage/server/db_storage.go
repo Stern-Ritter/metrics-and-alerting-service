@@ -208,3 +208,8 @@ func (s *DBStorage) Restore(fName string) error {
 func (s *DBStorage) Save(fName string) error {
 	return fmt.Errorf("can not save database storage state to file: %s", fName)
 }
+
+// Close closes the database connection.
+func (s *DBStorage) Close() error {
+	return s.db.Close()
+}

@@ -5,7 +5,9 @@
   "report_interval": 5,
   "metrics_buffer_size": 12,
   "rate_limit": 4,
+  "grpc": true,
   "sign_key": "secret",
   "crypto_key": "./certs/public.pem",
+  "tls_cert": "./certs/client-cert.pem",
   "logger_level": "debug"
 }

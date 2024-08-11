@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+package metrics.metricsapi.v1;
+
+import "validate/validate.proto";
+
+option go_package = "metrics/metricsapi/v1";
+
+message MetricData {
+  string name = 1 [(validate.rules).string = {min_len: 1}];
+  string type = 2 [(validate.rules).string = {in: ["gauge", "counter"]}];
+
+  oneof metric_value {
+    int64 delta = 3 [(validate.rules).int64 = {gte: 0}];
+    double value = 4;
+  }
+}
+
+message MetricInfo {
+  string name = 1 [(validate.rules).string = {min_len: 1}];
+  string type = 2 [(validate.rules).string = {in: ["gauge", "counter"]}];
+}
+
+message MetricsV1ServiceUpdateMetricRequest {
+  MetricData metric = 1;
+}
+
+message MetricsV1ServiceUpdateMetricResponse {
+  MetricData metric = 1;
+}
+
+message MetricsV1ServiceUpdateMetricsBatchRequest {
+  repeated MetricData metrics = 1 [(validate.rules).repeated = {
+    min_items: 1,
+    items: {
+      message: {
+        required: true
+      }
+    }
+  }];
+}
+
+message MetricsV1ServiceUpdateMetricsBatchResponse {}
+
+message MetricsV1ServiceGetMetricRequest {
+  MetricInfo metric = 1;
+}
+
+message MetricsV1ServiceGetMetricResponse {
+  MetricData metric = 1;
+}
+
+message MetricsV1ServiceGetMetricsRequest {}
+
+message MetricsV1ServiceGetMetricsResponse {
+  string metrics = 1;
+}
+
+message MetricsV1ServicePingRequest {}
+
+message MetricsV1ServicePingResponse {}

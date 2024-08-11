@@ -4,7 +4,11 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
+
+	interceptor "github.com/Stern-Ritter/metrics-and-alerting-service/internal/logger/grpc"
 )
 
 // ServerLogger wraps a zap.Logger.
@@ -82,4 +86,14 @@ func (logger *ServerLogger) LoggerMiddleware(next http.Handler) http.Handler {
 			zap.Int("size", responseData.size),
 		)
 	})
+}
+
+// LoggerInterceptor returns a new UnaryServerInterceptor that logs the details of each gRPC call.
+// It uses the provided logger to log events related to the gRPC calls. The interceptor logs
+// only when the call finishes.
+func LoggerInterceptor(logger interceptor.Logger) grpc.UnaryServerInterceptor {
+	opts := []logging.Option{
+		logging.WithLogOnEvents(logging.FinishCall),
+	}
+	return logging.UnaryServerInterceptor(interceptor.NewInterceptorLogger(logger), opts...)
 }
